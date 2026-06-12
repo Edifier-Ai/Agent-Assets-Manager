@@ -1,10 +1,10 @@
-# SkillsDock MVP Design
+# Agent Assets Manager MVP Design
 
 Date: 2026-06-12
 
 ## Product Positioning
 
-SkillsDock is a Mac-first local control center for AI agent assets and model configuration. The MVP focuses on accurate local discovery, safe governance, and unified model/provider visibility for tools such as Codex, Claude Code, OpenCode, Hermes, OpenClaw, and other CLI agents.
+Agent Assets Manager is a Mac-first local control center for AI agent assets and model configuration. The MVP focuses on accurate local discovery, safe governance, and unified model/provider visibility for tools such as Codex, Claude Code, OpenCode, Hermes, OpenClaw, and other CLI agents.
 
 The first version is not a marketplace-first product. It should answer:
 
@@ -55,7 +55,7 @@ These are reserved for later versions after local discovery and governance are r
 - CLI detection: Rust process runner and PATH inspection.
 - Packaging: Developer ID signed and notarized macOS app for external distribution; local unsigned builds are acceptable during MVP development.
 
-This stack is preferred over pure SwiftUI for the MVP because SkillsDock needs complex card grids, matrices, filtering, diff views, scan progress, and settings panels. Tauri keeps the app lightweight while giving Rust direct access to local scanning, hashing, and safe file operations.
+This stack is preferred over pure SwiftUI for the MVP because Agent Assets Manager needs complex card grids, matrices, filtering, diff views, scan progress, and settings panels. Tauri keeps the app lightweight while giving Rust direct access to local scanning, hashing, and safe file operations.
 
 ## Core Concepts
 
@@ -76,7 +76,7 @@ Each platform has an adapter that knows where to find configs, how to parse asse
 
 ### Asset
 
-A normalized item managed by SkillsDock.
+A normalized item managed by Agent Assets Manager.
 
 Asset types:
 
@@ -106,7 +106,7 @@ A platform-specific pointer from a platform to a canonical asset copy. Bindings 
 
 ### Model Profile
 
-A normalized provider/model configuration that SkillsDock can display, validate, and optionally write back to platform configs.
+A normalized provider/model configuration that Agent Assets Manager can display, validate, and optionally write back to platform configs.
 
 Examples:
 
@@ -227,7 +227,7 @@ The Models view shows:
 - Last validation result
 - Warnings for mismatched provider/model/base URL
 
-API keys must never be shown in full. SkillsDock should display only presence and a masked suffix when safe.
+API keys must never be shown in full. Agent Assets Manager should display only presence and a masked suffix when safe.
 
 ### Model Profiles
 
@@ -248,7 +248,7 @@ Each profile stores:
 - optional keychain reference
 - notes
 
-Secrets should be stored in macOS Keychain when SkillsDock owns them. Existing secrets found in config files should be indexed but not copied into the database.
+Secrets should be stored in macOS Keychain when Agent Assets Manager owns them. Existing secrets found in config files should be indexed but not copied into the database.
 
 ### Applying Profiles
 
@@ -261,7 +261,7 @@ Applying a model profile is allowed only when the platform adapter declares the 
 - Show whether the platform needs restart.
 - Create backup before writing.
 
-For unsupported or partially understood platforms, SkillsDock should show read-only detection, warnings, and manual instructions until an adapter implements safe writes.
+For unsupported or partially understood platforms, Agent Assets Manager should show read-only detection, warnings, and manual instructions until an adapter implements safe writes.
 
 ### Validation
 
@@ -277,7 +277,7 @@ The MVP can implement parse check and optional endpoint check first. Minimal mod
 
 ## Safety Model
 
-SkillsDock is local-first and must treat agent assets as potentially executable code.
+Agent Assets Manager is local-first and must treat agent assets as potentially executable code.
 
 ### Destructive Actions
 
@@ -291,13 +291,13 @@ No destructive action should happen without:
 
 ### Disable
 
-Disable should remove the platform binding or move the platform copy into a SkillsDock disabled area. It must not delete the canonical asset.
+Disable should remove the platform binding or move the platform copy into an Agent Assets Manager disabled area. It must not delete the canonical asset.
 
 ### Delete
 
 Delete should move files into an app-managed trash under:
 
-`~/Library/Application Support/SkillsDock/Trash`
+`~/Library/Application Support/Agent Assets Manager/Trash`
 
 Permanent delete requires a second confirmation.
 
