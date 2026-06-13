@@ -1,13 +1,13 @@
 <claude-mem-context>
 # Memory Context
 
-# [Agent Assets Manager] recent context, 2026-06-13 9:01pm GMT+8
+# [Agent Assets Manager] recent context, 2026-06-13 9:10pm GMT+8
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (12,427t read) | 5,887,448t work | 100% savings
+Stats: 50 obs (12,280t read) | 5,842,814t work | 100% savings
 
 ### Jun 13, 2026
 S108 优化资产卡片的交互、易用性与数据来源，重点解决来源显示为 unknown 的问题 (Jun 13 at 6:07 PM)
@@ -20,12 +20,6 @@ S113 修复点击“安装到全部平台”后浮层过高、无法点击的问
 S114 修复点击“安装到全部平台”后浮层过高、无法点击的问题 (Jun 13 at 6:13 PM)
 S115 修复点击“安装到全部平台”后浮层过高、无法点击的问题 (Jun 13 at 6:13 PM)
 S116 修复点击“安装到全部平台”后浮层过高、无法点击的问题 (Jun 13 at 6:19 PM)
-1843 7:08p 🔵 Agent Assets Manager asset model abstraction
-1845 7:16p ⚖️ Asset filter category optimization approach
-1846 " ✅ AssetFilterId type extended with config filter
-1847 " 🟣 Filter constants split into primary and insight rows
-1849 " 🟣 AssetToolbar redesigned with two-row filter layout
-1850 " 🟣 AssetsPage wired to new AssetToolbar and tests pass
 1848 7:17p 🟣 Config filter matching logic and barrel exports implemented
 1851 " 🟣 Category optimization builds successfully
 1852 " 🔵 Browser QA confirms optimized filter layout
@@ -70,6 +64,12 @@ S116 修复点击“安装到全部平台”后浮层过高、无法点击的问
 1910 " 🟣 Frontend UI exposes source-platform selector and batch sync actions
 1911 " 🔴 Mobile narrow viewport no longer auto-opens asset detail panel
 1912 " 🔵 All tests and production builds pass after batch sync implementation
+1918 9:01p ⚖️ Consolidate platform skill availability indicators
+1919 9:02p ✅ Remove redundant platform availability indicator from AssetCard
+1920 " ✅ Browser runtime connected for visual QA
+1922 " 🔵 Dev server runs in browser demo mode with fallback data
+1923 9:03p ✅ AssetCard platform indicator duplication removed and visually verified
+1924 " 🔵 Browser tab screenshot uses tab.screenshot, not tab.playwright.screenshot
 
-Access 5887k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 5843k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
