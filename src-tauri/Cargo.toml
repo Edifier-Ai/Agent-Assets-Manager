@@ -1,6 +1,6 @@
 [package]
 name = "agent-assets-manager"
-version = "0.1.1"
+version = "0.1.3"
 description = "Agent Assets Manager - Mac-first local control center for AI agent assets"
 authors = ["you"]
 edition = "2021"
@@ -38,6 +38,9 @@ which = "6"
 
 # Date & time
 chrono = { version = "0.4", features = ["serde"] }
+
+# Ordered map (stable insertion-order iteration)
+linked-hash-map = "0.5"
 
 # Error handling
 thiserror = "1"

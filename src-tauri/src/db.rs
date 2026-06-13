@@ -571,7 +571,7 @@ pub fn insert_asset(conn: &Connection, asset: &Asset) -> SqlResult<()> {
     Ok(())
 }
 
-fn insert_installation(conn: &Connection, inst: &Installation) -> SqlResult<()> {
+pub fn insert_installation(conn: &Connection, inst: &Installation) -> SqlResult<()> {
     conn.execute(
         "INSERT OR REPLACE INTO installations (id, asset_id, platform_id, path, scope, enabled, official, project_local, binding_type, content_hash, status)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
@@ -585,30 +585,68 @@ fn insert_installation(conn: &Connection, inst: &Installation) -> SqlResult<()> 
 }
 
 pub fn get_all_assets(conn: &Connection) -> SqlResult<Vec<Asset>> {
-    let mut stmt = conn.prepare("SELECT id, asset_type, name, description, author, version, source, canonical_hash, directory_hash, risk_level, status, created_at, updated_at FROM assets")?;
-    let rows = stmt.query_map([], |row| {
-        let id: String = row.get(0)?;
-        let installations = get_asset_installations(conn, &id).unwrap_or_default();
-        Ok(Asset {
-            id,
-            asset_type: row.get(1)?,
-            name: row.get(2)?,
-            description: row.get(3)?,
-            author: row.get(4)?,
-            version: row.get(5)?,
-            source: row.get(6)?,
-            canonical_hash: row.get(7)?,
-            directory_hash: row.get(8)?,
-            risk_level: row.get(9)?,
-            status: row.get(10)?,
-            created_at: row.get(11)?,
-            updated_at: row.get(12)?,
-            installations,
-        })
-    })?;
-    rows.collect()
+    let mut stmt = conn.prepare(
+        "SELECT
+            a.id, a.asset_type, a.name, a.description, a.author, a.version,
+            a.source, a.canonical_hash, a.directory_hash, a.risk_level,
+            a.status, a.created_at, a.updated_at,
+            i.id as inst_id, i.asset_id, i.platform_id, i.path, i.scope,
+            i.enabled, i.official, i.project_local, i.binding_type,
+            i.content_hash, i.status as inst_status,
+            COALESCE(p.name, i.platform_id) as platform_name
+         FROM assets a
+         LEFT JOIN installations i ON i.asset_id = a.id
+         LEFT JOIN platforms p ON p.id = i.platform_id
+         ORDER BY a.id, i.id"
+    )?;
+
+    let mut asset_map: linked_hash_map::LinkedHashMap<String, Asset> =
+        linked_hash_map::LinkedHashMap::new();
+
+    let mut rows = stmt.query([])?;
+    while let Some(row) = rows.next()? {
+        let asset_id: String = row.get(0)?;
+        let inst_id: Option<String> = row.get(13)?;
+
+        let asset = asset_map.entry(asset_id.clone()).or_insert_with(|| Asset {
+            id: asset_id,
+            asset_type: row.get(1).unwrap_or_default(),
+            name: row.get(2).unwrap_or_default(),
+            description: row.get(3).unwrap_or_default(),
+            author: row.get(4).unwrap_or_default(),
+            version: row.get(5).unwrap_or_default(),
+            source: row.get(6).unwrap_or_default(),
+            canonical_hash: row.get(7).unwrap_or_default(),
+            directory_hash: row.get(8).unwrap_or_default(),
+            risk_level: row.get(9).unwrap_or_default(),
+            status: row.get(10).unwrap_or_default(),
+            created_at: row.get(11).unwrap_or_default(),
+            updated_at: row.get(12).unwrap_or_default(),
+            installations: Vec::new(),
+        });
+
+        if let Some(id) = inst_id {
+            asset.installations.push(Installation {
+                id,
+                asset_id: row.get(14).unwrap_or_default(),
+                platform_id: row.get(15).unwrap_or_default(),
+                path: row.get(16).unwrap_or_default(),
+                scope: row.get(17).unwrap_or_default(),
+                enabled: row.get::<_, i32>(18).unwrap_or(0) != 0,
+                official: row.get::<_, i32>(19).unwrap_or(0) != 0,
+                project_local: row.get::<_, i32>(20).unwrap_or(0) != 0,
+                binding_type: row.get(21).unwrap_or_default(),
+                content_hash: row.get(22).unwrap_or_default(),
+                status: row.get(23).unwrap_or_default(),
+                platform_name: row.get(24).unwrap_or_default(),
+            });
+        }
+    }
+
+    Ok(asset_map.into_iter().map(|(_, v)| v).collect())
 }
 
+#[allow(dead_code)]
 fn get_asset_installations(conn: &Connection, asset_id: &str) -> SqlResult<Vec<Installation>> {
     let mut stmt = conn.prepare(
         "SELECT i.id, i.asset_id, i.platform_id, i.path, i.scope, i.enabled, i.official, i.project_local, i.binding_type, i.content_hash, i.status, p.name as platform_name
@@ -1112,5 +1150,53 @@ mod tests {
 
         std::fs::remove_file(&db_path).ok();
         std::fs::remove_dir_all(&db_dir).ok();
+    }
+
+    #[test]
+    fn get_all_assets_returns_installations_grouped_correctly() {
+        let conn = Connection::open_in_memory().unwrap();
+        create_tables(&conn).unwrap();
+        run_migrations(&conn).unwrap();
+
+        conn.execute(
+            "INSERT INTO platforms (id, name, kind, writable, detected_at, status, asset_count, warning_count) VALUES ('p1', 'Claude', 'claude', 'readonly', '2026-01-01', 'active', 0, 0)",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO platforms (id, name, kind, writable, detected_at, status, asset_count, warning_count) VALUES ('p2', 'Codex', 'codex', 'partial', '2026-01-01', 'active', 0, 0)",
+            [],
+        ).unwrap();
+
+        conn.execute(
+            "INSERT INTO assets (id, asset_type, name, source, risk_level, status, created_at, updated_at) VALUES ('a1', 'Skill', 'my-skill', 'local', 'low', 'installed', '2026-01-01', '2026-01-01')",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO assets (id, asset_type, name, source, risk_level, status, created_at, updated_at) VALUES ('a2', 'Agent', 'my-agent', 'local', 'low', 'installed', '2026-01-01', '2026-01-01')",
+            [],
+        ).unwrap();
+
+        conn.execute(
+            "INSERT INTO installations (id, asset_id, platform_id, path, scope, enabled, official, project_local, binding_type, status) VALUES ('i1', 'a1', 'p1', '/home/.claude/skills/my-skill', 'user', 1, 0, 0, 'copy', 'installed')",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO installations (id, asset_id, platform_id, path, scope, enabled, official, project_local, binding_type, status) VALUES ('i2', 'a1', 'p2', '/home/.codex/skills/my-skill', 'user', 1, 0, 0, 'copy', 'installed')",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO installations (id, asset_id, platform_id, path, scope, enabled, official, project_local, binding_type, status) VALUES ('i3', 'a2', 'p1', '/home/.claude/agents/my-agent', 'user', 1, 0, 0, 'copy', 'installed')",
+            [],
+        ).unwrap();
+
+        let assets = get_all_assets(&conn).unwrap();
+
+        assert_eq!(assets.len(), 2);
+        let a1 = assets.iter().find(|a| a.id == "a1").unwrap();
+        let a2 = assets.iter().find(|a| a.id == "a2").unwrap();
+        assert_eq!(a1.installations.len(), 2);
+        assert_eq!(a2.installations.len(), 1);
+        let i1 = a1.installations.iter().find(|i| i.id == "i1").unwrap();
+        assert_eq!(i1.platform_name, "Claude");
     }
 }
