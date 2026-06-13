@@ -1,37 +1,17 @@
 <claude-mem-context>
 # Memory Context
 
-# [Agent Assets Manager] recent context, 2026-06-13 7:15pm GMT+8
+# [Agent Assets Manager] recent context, 2026-06-13 7:39pm GMT+8
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (11,300t read) | 3,312,035t work | 100% savings
+Stats: 50 obs (10,723t read) | 4,929,451t work | 100% savings
 
 ### Jun 13, 2026
-1789 2:57p 🔵 PIL available as icon generation engine
-1790 " 🔵 Platform detection undercounting reported in Agent Assets Manager
-1792 2:58p 🔵 Platform detection undercounts because Tauri app PATH lacks user shell directories
-1793 " 🔵 Platform detection skips installed platforms due to missing adapters and scan coupling
-1794 3:00p 🔴 Improved platform detection with PATH fallback and version timeout
-1795 " 🟣 Added platform adapters for Kimi, Gemini, Qwen, and Cursor
-1801 3:01p 🟣 Agent Assets Manager supports nine platform adapters
-1797 " ✅ UI 标题截断换行与图标风格统一需求
-1798 3:05p ✅ Tracked generated app icons by removing gitignore rule
-1799 " 🟣 Added PlatformIcon component and integrated platform-specific icons
-1800 " 🔴 Fixed title wrapping and truncation in narrow viewports
-1804 " 🔵 Gitignore still excludes src-tauri/icons despite attempted removal
-1802 3:06p ✅ Verified icons are no longer ignored by git
-1803 " 🟣 Platform detection supports nine adapters with robust PATH resolution
-1805 3:07p ⚖️ Generate UI mockup before implementing asset card view
-1812 " ⚖️ Card view design requirements refined
-1806 3:08p ⚖️ 图标生成方式决定：弃用emoji，改用生图能力
-1807 " ⚖️ Use image generation instead of emoji for icons
-1808 3:09p ⚖️ 图标生成改用图像生成替代 Emoji
-1809 " 🟣 平台图标实现改用生成式 PNG 图标
+1809 3:09p 🟣 平台图标实现改用生成式 PNG 图标
 1810 " 🔵 Playwright QA 验证生成式 PNG 图标已正确渲染
-1811 " 🔵 生成式 PNG 图标 QA 截图已生成并供人工审阅
 1813 5:28p 🟣 Asset cards source detection now derives real platform origins instead of showing unknown
 1814 " 🟣 Scan page UX upgraded with cancelable indeterminate progress overlay and date formatting utility
 1815 " 🟣 Settings page now validates paths, exposes inline errors, and warns on unsaved navigation
@@ -67,9 +47,29 @@ S116 修复点击“安装到全部平台”后浮层过高、无法点击的问
 1839 " 🟣 Agent Assets Manager v0.1.8 DMG build in progress
 1837 " 🟣 Agent Assets Manager v0.1.8 tests passed and version confirmed
 1840 7:06p 🟣 Agent Assets Manager v0.1.8 DMG build completed
+1856 " 🟣 Agent Assets Manager v0.1.8 release built and verified
 1841 " 🟣 Agent Assets Manager v0.1.8 DMG artifact verified
 1842 7:08p 🔵 Project context for category optimization discussion
+1844 " 🔵 Asset filter chip architecture and category overload
 1843 " 🔵 Agent Assets Manager asset model abstraction
+1845 7:16p ⚖️ Asset filter category optimization approach
+1846 " ✅ AssetFilterId type extended with config filter
+1847 " 🟣 Filter constants split into primary and insight rows
+1849 " 🟣 AssetToolbar redesigned with two-row filter layout
+1850 " 🟣 AssetsPage wired to new AssetToolbar and tests pass
+1848 7:17p 🟣 Config filter matching logic and barrel exports implemented
+1851 " 🟣 Category optimization builds successfully
+1852 " 🔵 Browser QA confirms optimized filter layout
+1853 " 🟣 Asset toolbar redesigned with governance insight filters
+1854 " ✅ New consolidated config filter for configuration asset types
+1855 " 🔄 Memoized insight-count computation in AssetToolbar
+1857 7:33p ✅ Agent Assets Manager v0.1.8 version changes committed
+1858 " ✅ Agent Assets Manager version bumped to 0.1.9
+1859 " 🟣 Agent Assets Manager v0.1.9 frontend tests passed
+1860 7:34p 🟣 Agent Assets Manager v0.1.9 tests passed and version confirmed
+1861 " 🟣 Agent Assets Manager v0.1.9 DMG build in progress
+1862 " 🟣 Agent Assets Manager v0.1.9 DMG build continues
+1863 " 🟣 Agent Assets Manager v0.1.9 DMG built and verified
 
-Access 3312k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 4929k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

@@ -11,6 +11,7 @@ import kimiIcon from '../assets/platform-icons/kimi.png';
 import openclawIcon from '../assets/platform-icons/openclaw.png';
 import opencodeIcon from '../assets/platform-icons/opencode.png';
 import qwenIcon from '../assets/platform-icons/qwen.png';
+import traeIcon from '../assets/platform-icons/trae.png';
 
 type PlatformIconProps = ImgHTMLAttributes<HTMLImageElement> & {
   kind?: string;
@@ -28,6 +29,7 @@ const iconByKey: Record<string, string> = {
   gemini: geminiIcon,
   qwen: qwenIcon,
   cursor: cursorIcon,
+  trae: traeIcon,
   generic: genericIcon,
 };
 
@@ -43,7 +45,7 @@ function normalizePlatformKey(kind?: string, platformName?: string): string {
   if (value.includes('gemini')) return 'gemini';
   if (value.includes('qwen')) return 'qwen';
   if (value.includes('cursor')) return 'cursor';
-  if (value.includes('trae')) return 'generic';
+  if (value.includes('trae')) return 'trae';
   return 'generic';
 }
 
