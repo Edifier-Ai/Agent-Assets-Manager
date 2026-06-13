@@ -111,8 +111,8 @@ export interface OperationLog {
   targetType: string;
   targetId: string | null;
   targetPath: string | null;
-  previewJson: string;
-  resultJson: string;
+  previewJson: string | null;
+  resultJson: string | null;
   backupId: string | null;
   createdAt: string;
   completedAt: string | null;

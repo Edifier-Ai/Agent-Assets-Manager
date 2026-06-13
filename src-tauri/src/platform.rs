@@ -173,8 +173,12 @@ fn find_binary_in_common_dirs(bin_name: &str) -> Option<std::path::PathBuf> {
 }
 
 fn find_binary_via_login_shell(bin_name: &str) -> Option<std::path::PathBuf> {
+    let shell = std::env::var("SHELL")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| "zsh".to_string());
     let output = command_output_with_timeout(
-        "zsh",
+        &shell,
         &["-lc", &format!("command -v {}", shell_escape(bin_name))],
         Duration::from_millis(1200),
     )?;

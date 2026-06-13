@@ -4,7 +4,7 @@ import type { Platform } from '../types';
 
 function makePlatform(writable: Platform['writable']): Platform {
   return {
-    id: 1,
+    id: '1',
     kind: 'Claude',
     name: 'Claude',
     status: 'active',
@@ -12,6 +12,8 @@ function makePlatform(writable: Platform['writable']): Platform {
     version: '1.0.0',
     configRoots: [],
     writable,
+    detectedAt: '2026-01-01',
+    icon: 'claude',
     assetCount: 0,
     warningCount: 0,
     safeActions: [],

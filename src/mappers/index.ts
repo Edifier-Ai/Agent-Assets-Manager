@@ -428,8 +428,8 @@ export interface OperationLogDto {
   target_type: string;
   target_id: string | null;
   target_path: string | null;
-  preview_json: string;
-  result_json: string;
+  preview_json: string | null;
+  result_json: string | null;
   backup_id: string | null;
   created_at: string;
   completed_at: string | null;

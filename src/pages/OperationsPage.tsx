@@ -146,7 +146,7 @@ export default function OperationsPage({ operationLogs }: OperationsPageProps) {
                 )}
                 <div className="rounded-lg border border-gray-100 p-3">
                   <div className="mb-1 text-xs text-gray-400">结果 (JSON)</div>
-                  <pre className="overflow-x-auto text-xs text-gray-600">{log.resultJson}</pre>
+                  <pre className="overflow-x-auto text-xs text-gray-600">{log.resultJson ?? '—'}</pre>
                 </div>
               </div>
             </motion.div>

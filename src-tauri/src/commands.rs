@@ -72,14 +72,13 @@ pub fn scan_platforms(
         db_platforms.push(platform);
     }
 
-    // Populate cache with freshly detected platforms
-    {
-        let mut guard = cache.inner.lock().unwrap_or_else(|e| e.into_inner());
-        *guard = Some((std::time::Instant::now(), db_platforms));
-    }
-
+    // Populate cache from the authoritative DB read (includes pre-existing platforms)
     match db::get_all_platforms(&conn) {
-        Ok(p) => ApiResponse::ok(p),
+        Ok(all_platforms) => {
+            let mut guard = cache.inner.lock().unwrap_or_else(|e| e.into_inner());
+            *guard = Some((std::time::Instant::now(), all_platforms.clone()));
+            ApiResponse::ok(all_platforms)
+        }
         Err(e) => ApiResponse::err(e.to_string()),
     }
 }
@@ -267,6 +266,7 @@ pub fn preview_operation(
 #[tauri::command]
 pub fn execute_operation(
     request: operations::ExecuteOperationRequest,
+    cache: tauri::State<'_, crate::platform::PlatformCache>,
 ) -> ApiResponse<operations::OperationExecutionResult> {
     let conn = match get_db_connection() {
         Ok(c) => c,
@@ -274,7 +274,10 @@ pub fn execute_operation(
     };
 
     match operations::execute_operation(&conn, request) {
-        Ok(result) => ApiResponse::ok(result),
+        Ok(result) => {
+            cache.invalidate();
+            ApiResponse::ok(result)
+        }
         Err(e) => ApiResponse::err(e),
     }
 }
