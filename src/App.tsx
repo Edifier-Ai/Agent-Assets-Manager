@@ -10,6 +10,7 @@ import PlatformsPage from './pages/PlatformsPage';
 import ModelsPage from './pages/ModelsPage';
 import ScanPage from './pages/ScanPage';
 import BackupsPage from './pages/BackupsPage';
+import OperationsPage from './pages/OperationsPage';
 import SettingsPage from './pages/SettingsPage';
 import FirstRunWizard from './components/FirstRunWizard';
 import { ToastProvider, useToast } from './components/Toast';
@@ -23,6 +24,7 @@ import type {
   ModelBinding,
   Backup,
   Finding,
+  OperationLog,
   ScanRun,
   AppSettings,
   SaveSettingsInput,
@@ -35,6 +37,7 @@ const pageComponents: Record<NavPage, ComponentType<any>> = {
   models: ModelsPage,
   scan: ScanPage,
   backups: BackupsPage,
+  operations: OperationsPage,
   settings: SettingsPage,
 };
 
@@ -55,6 +58,7 @@ function AppShell() {
   const [modelBindings, setModelBindings] = useState<ModelBinding[]>([]);
   const [backups, setBackups] = useState<Backup[]>([]);
   const [findings, setFindings] = useState<Finding[]>([]);
+  const [operationLogs, setOperationLogs] = useState<OperationLog[]>([]);
   const [scanRuns, setScanRuns] = useState<ScanRun[]>([]);
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [lastScanTime, setLastScanTime] = useState<string>('');
@@ -63,12 +67,13 @@ function AppShell() {
 
   const loadData = useCallback(async () => {
     try {
-      const [p, a, m, b, f, r, s] = await Promise.all([
+      const [p, a, m, b, f, ol, r, s] = await Promise.all([
         api.getPlatforms(),
         api.getAssets(),
         api.getModelBindings(),
         api.getBackups(),
         api.getFindings(),
+        api.getOperationLogs(),
         api.getScanRuns(),
         api.getSettings(),
       ]);
@@ -77,6 +82,7 @@ function AppShell() {
       setModelBindings(m);
       setBackups(b);
       setFindings(f);
+      setOperationLogs(ol);
       setScanRuns(r);
       setSettings(s);
       if (r.length > 0) {
@@ -171,6 +177,7 @@ function AppShell() {
     modelBindings,
     backups,
     findings,
+    operationLogs,
     scanRuns,
     settings: settings ?? undefined,
     initialFilter: currentPage === 'assets' ? assetInitialFilter : undefined,

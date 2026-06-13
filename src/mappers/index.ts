@@ -10,6 +10,7 @@ import type {
   ModelBinding,
   ModelProfile,
   OperationExecutionResult,
+  OperationLog,
   OperationPreview,
   OperationRequest,
   Platform,
@@ -417,6 +418,36 @@ export function mapBackupDto(dto: BackupDto): Backup {
     backupPath: dto.backup_path,
     hash: dto.hash,
     createdAt: dto.created_at,
+  };
+}
+
+export interface OperationLogDto {
+  id: string;
+  operation_type: string;
+  status: string;
+  target_type: string;
+  target_id: string | null;
+  target_path: string | null;
+  preview_json: string;
+  result_json: string;
+  backup_id: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export function mapOperationLogDto(dto: OperationLogDto): OperationLog {
+  return {
+    id: dto.id,
+    operationType: dto.operation_type,
+    status: dto.status,
+    targetType: dto.target_type,
+    targetId: dto.target_id,
+    targetPath: dto.target_path,
+    previewJson: dto.preview_json,
+    resultJson: dto.result_json,
+    backupId: dto.backup_id,
+    createdAt: dto.created_at,
+    completedAt: dto.completed_at,
   };
 }
 

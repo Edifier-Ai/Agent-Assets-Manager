@@ -1,4 +1,5 @@
-import { Home, Box, Layers, Brain, ScanLine, Archive, Settings, Briefcase } from 'lucide-react';
+import { Home, Box, Layers, Brain, ScanLine, Archive, History, Settings } from 'lucide-react';
+import PlatformIcon from './PlatformIcon';
 import type { NavPage, ScanRun } from '../types';
 
 interface SidebarProps {
@@ -15,6 +16,7 @@ const items: { id: NavPage; label: string; icon: React.ElementType }[] = [
   { id: 'models', label: '模型', icon: Brain },
   { id: 'scan', label: '扫描', icon: ScanLine },
   { id: 'backups', label: '备份', icon: Archive },
+  { id: 'operations', label: '操作历史', icon: History },
   { id: 'settings', label: '设置', icon: Settings },
 ];
 
@@ -43,9 +45,9 @@ export default function Sidebar({ active, onNavigate, latestScanRun, scanning }:
     <div className="w-56 bg-sidebar flex flex-col border-r border-gray-200/60 select-none shrink-0">
       <div className="p-4 flex items-center gap-2.5">
         <div className="w-8 h-8 rounded-lg bg-gray-900 flex items-center justify-center">
-          <Briefcase className="w-4.5 h-4.5 text-white" />
+          <PlatformIcon kind="app" className="w-7 h-7" />
         </div>
-        <span className="font-semibold text-sm text-gray-900 tracking-tight">Agent Assets Manager</span>
+        <span className="font-semibold text-sm text-gray-900 tracking-tight whitespace-nowrap">Agent Assets Manager</span>
       </div>
       <nav className="flex-1 px-3 py-2 space-y-0.5">
         {items.map((item) => {
@@ -57,7 +59,7 @@ export default function Sidebar({ active, onNavigate, latestScanRun, scanning }:
               onClick={() => onNavigate(item.id)}
               className={`nav-item w-full text-left ${isActive ? 'active' : ''}`}
             >
-              <Icon className={`w-4.5 h-4.5 ${isActive ? 'text-gray-900' : 'text-gray-400'}`} />
+              <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-gray-900' : 'text-gray-400'}`} />
               <span>{item.label}</span>
             </button>
           );
@@ -66,9 +68,9 @@ export default function Sidebar({ active, onNavigate, latestScanRun, scanning }:
       <div className="p-4 border-t border-gray-200/60">
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <div className="w-2 h-2 rounded-full bg-green-500" />
-          <span>{scanStatusLabel}</span>
+          <span className="whitespace-nowrap">{scanStatusLabel}</span>
         </div>
-        <div className="mt-1 text-xs text-gray-400 pl-4">{scanCountLabel}</div>
+        <div className="mt-1 text-xs text-gray-400 pl-4 whitespace-nowrap">{scanCountLabel}</div>
       </div>
     </div>
   );

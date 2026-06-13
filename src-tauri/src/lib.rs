@@ -61,6 +61,7 @@ pub fn run() {
             commands::get_model_bindings,
             commands::get_model_profiles,
             commands::get_backups,
+            commands::get_operation_logs,
             commands::get_findings,
             commands::get_scan_runs,
             commands::get_asset_detail,

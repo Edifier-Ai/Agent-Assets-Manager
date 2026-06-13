@@ -835,6 +835,31 @@ pub fn get_all_backups(conn: &Connection) -> SqlResult<Vec<Backup>> {
     rows.collect()
 }
 
+pub fn get_all_operation_logs(conn: &Connection) -> SqlResult<Vec<OperationLog>> {
+    let mut stmt = conn.prepare(
+        "SELECT id, operation_type, status, target_type, target_id, target_path,
+                preview_json, result_json, backup_id, created_at, completed_at
+         FROM operations
+         ORDER BY created_at DESC",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(OperationLog {
+            id: row.get(0)?,
+            operation_type: row.get(1)?,
+            status: row.get(2)?,
+            target_type: row.get(3)?,
+            target_id: row.get(4)?,
+            target_path: row.get(5)?,
+            preview_json: row.get(6)?,
+            result_json: row.get(7)?,
+            backup_id: row.get(8)?,
+            created_at: row.get(9)?,
+            completed_at: row.get(10)?,
+        })
+    })?;
+    rows.collect()
+}
+
 pub fn insert_operation(conn: &Connection, operation: &OperationLog) -> SqlResult<()> {
     conn.execute(
         "INSERT OR REPLACE INTO operations (
@@ -1198,5 +1223,31 @@ mod tests {
         assert_eq!(a2.installations.len(), 1);
         let i1 = a1.installations.iter().find(|i| i.id == "i1").unwrap();
         assert_eq!(i1.platform_name, "Claude");
+    }
+
+    #[test]
+    fn get_all_operation_logs_returns_rows_newest_first() {
+        let conn = Connection::open_in_memory().unwrap();
+        create_tables(&conn).unwrap();
+        run_migrations(&conn).unwrap();
+
+        conn.execute(
+            "INSERT INTO operations (id, operation_type, status, target_type, target_path, preview_json, result_json, created_at)
+             VALUES ('op1', 'delete', 'completed', 'Skill', '/path/a', '{}', '{}', '2026-06-13T08:00:00Z')",
+            [],
+        ).unwrap();
+        conn.execute(
+            "INSERT INTO operations (id, operation_type, status, target_type, target_path, preview_json, result_json, created_at)
+             VALUES ('op2', 'restore', 'completed', 'Backup', '/path/b', '{}', '{}', '2026-06-13T09:00:00Z')",
+            [],
+        ).unwrap();
+
+        let logs = get_all_operation_logs(&conn).unwrap();
+
+        assert_eq!(logs.len(), 2);
+        // newest first
+        assert_eq!(logs[0].id, "op2");
+        assert_eq!(logs[1].id, "op1");
+        assert_eq!(logs[0].operation_type, "restore");
     }
 }

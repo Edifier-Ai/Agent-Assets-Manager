@@ -1,4 +1,4 @@
-export type NavPage = 'overview' | 'assets' | 'platforms' | 'models' | 'scan' | 'backups' | 'settings';
+export type NavPage = 'overview' | 'assets' | 'platforms' | 'models' | 'scan' | 'backups' | 'operations' | 'settings';
 
 export type AssetType = 'Skill' | 'Agent' | 'Command' | 'MCP Server' | 'Tool' | 'Rule' | 'Memory' | 'Persona' | 'Provider Config' | 'Model Config' | 'CLI Runtime';
 
@@ -102,6 +102,20 @@ export interface Backup {
   backupPath: string;
   hash: string;
   createdAt: string;
+}
+
+export interface OperationLog {
+  id: string;
+  operationType: string;
+  status: string;
+  targetType: string;
+  targetId: string | null;
+  targetPath: string | null;
+  previewJson: string;
+  resultJson: string;
+  backupId: string | null;
+  createdAt: string;
+  completedAt: string | null;
 }
 
 export interface OperationRequest {

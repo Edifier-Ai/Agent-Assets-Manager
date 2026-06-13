@@ -199,6 +199,18 @@ pub fn get_backups() -> ApiResponse<Vec<db::Backup>> {
 }
 
 #[tauri::command]
+pub fn get_operation_logs() -> ApiResponse<Vec<db::OperationLog>> {
+    let conn = match get_db_connection() {
+        Ok(c) => c,
+        Err(e) => return ApiResponse::err(e.to_string()),
+    };
+    match db::get_all_operation_logs(&conn) {
+        Ok(logs) => ApiResponse::ok(logs),
+        Err(e) => ApiResponse::err(e.to_string()),
+    }
+}
+
+#[tauri::command]
 pub fn get_findings() -> ApiResponse<Vec<db::Finding>> {
     let conn = match get_db_connection() {
         Ok(c) => c,

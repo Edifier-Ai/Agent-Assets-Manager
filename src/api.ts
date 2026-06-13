@@ -16,6 +16,7 @@ import {
   mapFindingDto,
   mapModelBindingDto,
   mapOperationExecutionResultDto,
+  mapOperationLogDto,
   mapOperationPreviewDto,
   mapOperationRequest,
   mapPlatformDto,
@@ -30,6 +31,7 @@ import {
   type ModelBindingDto,
   type ModelProfileDto,
   type OperationExecutionResultDto,
+  type OperationLogDto,
   type OperationPreviewDto,
   type OperationRequestDto,
   type PlatformDto,
@@ -44,6 +46,7 @@ import type {
   ModelBinding,
   ModelProfile,
   OperationExecutionResult,
+  OperationLog,
   OperationPreview,
   OperationRequest,
   Platform,
@@ -133,6 +136,14 @@ export async function getBackups(): Promise<Backup[]> {
   }
   const data = await invokeCmd<BackupDto[]>('get_backups');
   return data.map(mapBackupDto);
+}
+
+export async function getOperationLogs(): Promise<OperationLog[]> {
+  if (!isTauriRuntime()) {
+    return [];
+  }
+  const dtos = await invokeCmd<OperationLogDto[]>('get_operation_logs');
+  return dtos.map(mapOperationLogDto);
 }
 
 export async function getFindings(): Promise<Finding[]> {
