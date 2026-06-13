@@ -3,7 +3,6 @@ import { AlertTriangle, Ban, CheckSquare, Copy, FolderOpen, MoreHorizontal, Squa
 import Badge from './Badge';
 import DropdownMenu from './DropdownMenu';
 import PlatformInstallButtons from './PlatformInstallButtons';
-import PlatformConsistencyMatrix from './PlatformConsistencyMatrix';
 import Tooltip from './Tooltip';
 import { deriveSource, getAssetTypeLabel, getFileName } from '../utils';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
@@ -145,17 +144,6 @@ export default function AssetCard({
       <p className="mt-1.5 line-clamp-2 min-h-[2.5rem] text-xs leading-5 text-gray-500">
         {asset.description || '暂无描述'}
       </p>
-
-      {/* Platform consistency matrix - only for Skills */}
-      {asset.type === 'Skill' && (
-        <div className="mt-2">
-          <PlatformConsistencyMatrix
-            asset={asset}
-            availablePlatformTargets={availablePlatformTargets}
-            compact
-          />
-        </div>
-      )}
 
       {/* Meta row: version + scope */}
       {asset.version && (
