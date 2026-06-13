@@ -1,6 +1,22 @@
 # Agent Assets Manager MVP Design
 
 Date: 2026-06-12
+Updated: 2026-06-13
+
+## Current Implementation Snapshot
+
+The repository has moved beyond the initial MVP specification. As of the current code state:
+
+- The app version is `0.1.3`.
+- The selected stack is implemented: Tauri 2, React 18, TypeScript, Vite, Rust, SQLite, and Tailwind CSS.
+- The app has a real desktop shell, first-run wizard, scan page, persisted settings, persisted scan runs, operation previews, backup records, and model profile storage.
+- The frontend has an explicit DTO mapping layer so Rust snake_case payloads are translated into camelCase UI view models.
+- The Assets page now defaults to a grouped card view by asset type/SKU, with platform icons, add-to-all/per-platform install controls, Chinese actions, and a right-side detail panel.
+- Generated PNG platform icons are tracked under `src/assets/platform-icons/`; bundle icons are tracked under `src-tauri/icons/`.
+- Default platform detection adapters currently include Codex, Claude Code, OpenCode, Hermes, OpenClaw, Kimi Code, Gemini CLI, Qwen Code, Cursor, and Trae.
+- `Generic CLI` exists in the platform enum and adapter factory but is not part of the default detection registry yet.
+
+This document remains the product baseline. For exact implementation status, also read `docs/superpowers/plans/2026-06-13-full-gap-closure.md`.
 
 ## Product Positioning
 
@@ -26,7 +42,8 @@ The first version is not a marketplace-first product. It should answer:
 - Card-based Skills and agent asset management.
 - Platform installation matrix for each asset.
 - Safe enable, disable, restore, and delete-to-trash flows.
-- Detection of Codex, Claude Code, OpenCode, Hermes, OpenClaw, and generic CLI agents.
+- Detection of Codex, Claude Code, OpenCode, Hermes, OpenClaw, Kimi Code, Gemini CLI, Qwen Code, Cursor, and Trae.
+- Generic CLI representation through the shared platform model and adapter factory, with default detection still pending.
 - Discovery of Skills, agents, commands, MCP configs, rules, memories, personas, and provider configs where supported.
 - Unified model/provider management view.
 - Operation preview before local writes.
@@ -70,6 +87,11 @@ Examples:
 - OpenCode
 - Hermes
 - OpenClaw
+- Kimi Code
+- Gemini CLI
+- Qwen Code
+- Cursor
+- Trae
 - Generic CLI
 
 Each platform has an adapter that knows where to find configs, how to parse assets, and which write operations are safe.
@@ -124,7 +146,7 @@ The first launch opens a scan wizard instead of an empty dashboard.
 
 The scanner checks:
 
-- Common binaries in PATH: `codex`, `claude`, `opencode`, `hermes`, `openclaw`.
+- Common binaries in PATH: `codex`, `claude`, `opencode`, `hermes`, `openclaw`, `kimi`, `gemini`, `qwen`, `cursor`, `trae`.
 - Homebrew locations: `/opt/homebrew/bin`, `/usr/local/bin`.
 - User binaries: `~/.local/bin`.
 - Known config roots:
@@ -134,6 +156,11 @@ The scanner checks:
   - `~/.config/opencode`
   - `~/.hermes`
   - `~/.openclaw`
+  - `~/.kimi-code`
+  - `~/.gemini`
+  - `~/.qwen`
+  - `~/.cursor`
+  - `~/.trae`
 - Optional project roots selected by the user.
 
 ### Step 2: Scan Known Asset Locations
@@ -401,13 +428,21 @@ Each adapter implements:
 - apply safe changes
 - restore backups
 
-Initial adapters:
+Current default adapters:
 
 - CodexAdapter
 - ClaudeAdapter
 - OpenCodeAdapter
 - HermesAdapter
 - OpenClawAdapter
+- KimiAdapter
+- GeminiAdapter
+- QwenAdapter
+- CursorAdapter
+- TraeAdapter
+
+Factory-supported adapter:
+
 - GenericCliAdapter
 
 GenericCliAdapter detects CLI tools but starts read-only unless the user maps a custom asset root.
@@ -501,7 +536,7 @@ GenericCliAdapter detects CLI tools but starts read-only unless the user maps a 
 ## MVP Success Criteria
 
 - First launch can scan the user's Mac and show installed agent platforms.
-- Assets from Codex, Claude Code, OpenCode, Hermes, and OpenClaw are listed where present.
+- Assets from Codex, Claude Code, OpenCode, Hermes, OpenClaw, Kimi Code, Gemini CLI, Qwen Code, Cursor, and Trae are listed where present.
 - Duplicate and conflicting Skills can be identified by hash.
 - The user can safely disable, restore, and trash user-installed assets.
 - The Models page shows current provider/model configuration for supported platforms.

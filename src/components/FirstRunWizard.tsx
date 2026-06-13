@@ -20,7 +20,7 @@ export default function FirstRunWizard({ onComplete }: FirstRunWizardProps) {
 
   const steps = [
     { title: '欢迎', description: 'Agent Assets Manager 将帮助你发现和管理本地 AI Agent 资产。' },
-    { title: '权限说明', description: '应用需要读取以下目录来发现 Agent 工具和配置：~/.codex, ~/.claude, ~/.opencode, ~/.hermes, ~/.openclaw 等。Secret 文件不会被读取内容。' },
+    { title: '权限说明', description: '应用需要读取 Agent 工具配置目录来发现平台和资产，包括 ~/.codex, ~/.claude, ~/.opencode, ~/.hermes, ~/.openclaw, ~/.kimi-code, ~/.gemini, ~/.qwen, ~/.cursor, ~/.trae 等。Secret 文件不会被读取内容。' },
     { title: '首次扫描', description: '开始扫描你的 Mac 以发现已安装的 Agent 平台和相关资产。' },
   ];
 

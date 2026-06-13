@@ -2,6 +2,23 @@
 
 Date: 2026-06-13
 
+## Current Implementation Snapshot
+
+The gap-closure work has been implemented in the current repository state and the app has continued through UI/platform polish.
+
+Current live-code facts:
+
+- Version is `0.1.3`.
+- The frontend/backend DTO boundary exists under `src/mappers/`.
+- Settings, scan runs, scan steps, model profiles, model bindings, operations, and backups are persisted through the Rust/SQLite layer.
+- Platform behavior is adapter-driven through `src-tauri/src/adapters/`.
+- Default adapter detection currently covers Codex, Claude Code, OpenCode, Hermes, OpenClaw, Kimi Code, Gemini CLI, Qwen Code, Cursor, and Trae.
+- `GenericCliAdapter` remains available from `adapter_for_kind`, but is not part of default detection.
+- The assets page has evolved from table/list-first to a grouped card-first experience while retaining a list mode and right-side detail panel.
+- Platform artwork is generated PNG under `src/assets/platform-icons/`; bundle artwork is tracked under `src-tauri/icons/`.
+
+The design below remains useful as the architectural rationale and implementation boundary. Treat "current problems" as historical unless re-confirmed against the live code.
+
 ## Goal
 
 This design closes the implementation gaps identified between the MVP specification and the current repository state.
@@ -37,18 +54,18 @@ The outcome is not a greenfield rewrite. It is a staged completion plan that kee
 - LLM-driven security analysis.
 - Full plugin ecosystem redesign.
 
-## Current Problems
+## Historical Problems
 
-The existing repository already has a strong base, but several gaps prevent it from satisfying the MVP specification:
+At the start of the gap-closure pass, the repository already had a strong base, but several gaps prevented it from satisfying the MVP specification:
 
-- The first-run wizard and scan page simulate progress with timers instead of reflecting backend state.
-- Frontend types are camelCase while Rust payloads are snake_case, with no explicit translation layer.
-- Platform behavior is largely hard-coded in `PlatformKind` and `scanner.rs` instead of adapter modules.
-- The scan pipeline identifies only a subset of asset categories and over-classifies markdown files as commands.
-- Operation previews are mostly UI placeholders rather than backend-generated plans.
-- Settings are not persisted.
-- Model profiles are mocked in the frontend and not stored in SQLite.
-- Generic CLI is defined but not actually surfaced as a detected platform.
+- Historically, the first-run wizard and scan page simulated progress with timers instead of reflecting backend state.
+- Historically, frontend types were camelCase while Rust payloads were snake_case, with no explicit translation layer.
+- Historically, platform behavior was largely hard-coded in `PlatformKind` and `scanner.rs` instead of adapter modules.
+- Historically, the scan pipeline identified only a subset of asset categories and over-classified markdown files as commands.
+- Historically, operation previews were mostly UI placeholders rather than backend-generated plans.
+- Historically, settings were not persisted.
+- Historically, model profiles were mocked in the frontend and not stored in SQLite.
+- Remaining watch item: Generic CLI is represented in code but is not included in default platform detection.
 
 ## Design Principles
 
@@ -158,7 +175,7 @@ This phase aligns scanning and capability behavior with the MVP spec.
 
 Deliverables:
 
-- Create adapter modules for Codex, Claude Code, OpenCode, Hermes, OpenClaw, and Generic CLI.
+- Create adapter modules for Codex, Claude Code, OpenCode, Hermes, OpenClaw, Kimi Code, Gemini CLI, Qwen Code, Cursor, Trae, and Generic CLI.
 - Move search roots, search patterns, model config locations, writable declarations, and safe write support into adapters.
 - Expand classification to distinguish:
   - Skill

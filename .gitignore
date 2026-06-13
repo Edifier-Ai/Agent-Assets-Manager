@@ -20,7 +20,6 @@ npm-debug.log*
 # Tauri
 target/
 src-tauri/gen/
-src-tauri/icons/
 
 # Environment
 .env

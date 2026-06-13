@@ -25,6 +25,11 @@ Notes:
 
 - Runtime imports no longer depend on `src/data/mockData.ts`; that file only keeps empty design-time placeholders.
 - The original per-task commit steps are considered satisfied by the final unified commit for this implementation pass.
+- The repository has since advanced to version `0.1.3`.
+- Default platform detection now includes Codex, Claude Code, OpenCode, Hermes, OpenClaw, Kimi Code, Gemini CLI, Qwen Code, Cursor, and Trae.
+- `GenericCliAdapter` remains factory-supported but is not part of the default detection registry.
+- Assets page now includes a grouped card view by asset type/SKU, platform PNG icons, add-to-all/per-platform installation controls, and a right-side detail panel.
+- Generated app/platform icon assets are tracked under `src-tauri/icons/` and `src/assets/platform-icons/`.
 
 ---
 
@@ -70,6 +75,11 @@ Notes:
 - Create: `src-tauri/src/adapters/openclaw.rs`
 - Create: `src-tauri/src/adapters/generic_cli.rs`
   - Implement platform-specific detection, asset discovery, model config support, and declared writable capabilities.
+- Create: `src-tauri/src/adapters/kimi.rs`
+- Create: `src-tauri/src/adapters/gemini.rs`
+- Create: `src-tauri/src/adapters/qwen.rs`
+- Create: `src-tauri/src/adapters/cursor.rs`
+- Create: `src-tauri/src/adapters/trae.rs`
 - Create: `src-tauri/src/operations.rs`
   - Build preview plans, execute supported operations, log operations, and enforce backup rules.
 - Modify: `src-tauri/src/scanner.rs`

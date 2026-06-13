@@ -82,8 +82,69 @@ pub fn preview_operation(request: PreviewOperationRequest) -> Result<OperationPr
     let mut backup_paths = Vec::new();
     let mut written_keys = Vec::new();
     let mut risks = Vec::new();
+    let mut needs_restart = false;
 
     match request.operation_type.as_str() {
+        "install-asset" => {
+            let source_path = request
+                .source_path
+                .clone()
+                .ok_or_else(|| "安装资产缺少源路径".to_string())?;
+            let platform_id = request
+                .platform_id
+                .clone()
+                .ok_or_else(|| "安装资产缺少目标平台".to_string())?;
+            let kind = PlatformKind::from_str(&platform_id)
+                .ok_or_else(|| format!("Unknown platform id: {platform_id}"))?;
+            let adapter = adapters::adapter_for_kind(&kind);
+            if adapter.writable_status() == "readonly" {
+                return Ok(OperationPreview {
+                    operation_type: request.operation_type,
+                    target_id: request.target_id,
+                    target_name: request.target_name,
+                    target_type: request.target_type.clone(),
+                    target_path: request.target_path,
+                    source_path: request.source_path,
+                    supported: false,
+                    files_to_modify: Vec::new(),
+                    files_to_move: Vec::new(),
+                    backup_paths: Vec::new(),
+                    written_keys: Vec::new(),
+                    needs_restart: false,
+                    risks: vec!["目标平台当前为只读，不支持直接安装资产".to_string()],
+                });
+            }
+            if !adapter
+                .asset_search_specs()
+                .iter()
+                .any(|spec| spec.asset_type == request.target_type)
+            {
+                return Ok(OperationPreview {
+                    operation_type: request.operation_type,
+                    target_id: request.target_id,
+                    target_name: request.target_name,
+                    target_type: request.target_type.clone(),
+                    target_path: request.target_path,
+                    source_path: request.source_path,
+                    supported: false,
+                    files_to_modify: Vec::new(),
+                    files_to_move: Vec::new(),
+                    backup_paths: Vec::new(),
+                    written_keys: Vec::new(),
+                    needs_restart: false,
+                    risks: vec![format!(
+                        "目标平台不支持安装 {} 类型资产",
+                        request.target_type
+                    )],
+                });
+            }
+            files_to_modify.push(request.target_path.clone());
+            files_to_move.push(source_path);
+            backup_paths.push(request.target_path.clone());
+            written_keys.push(format!("installation:{platform_id}"));
+            risks.push("如果目标路径已存在，将先创建覆盖前备份".to_string());
+            needs_restart = true;
+        }
         "delete" => {
             files_to_move.push(request.target_path.clone());
             backup_paths.push("Agent Assets Manager/Trash".to_string());
@@ -116,7 +177,7 @@ pub fn preview_operation(request: PreviewOperationRequest) -> Result<OperationPr
         files_to_move,
         backup_paths,
         written_keys,
-        needs_restart: false,
+        needs_restart,
         risks,
     })
 }
@@ -268,6 +329,39 @@ pub fn execute_operation(
                 message: "已恢复备份".to_string(),
             }
         }
+        "install-asset" => {
+            let source_path = preview
+                .source_path
+                .clone()
+                .ok_or_else(|| "安装资产缺少源路径".to_string())?;
+            let platform_id = request
+                .preview
+                .platform_id
+                .clone()
+                .ok_or_else(|| "安装资产缺少目标平台".to_string())?;
+            let backup =
+                backup_existing_target(conn, &preview.target_path, &operation_id, "install-asset")?;
+            fileops::copy_asset_to_target(&source_path, &preview.target_path)?;
+            record_asset_installation(
+                conn,
+                preview
+                    .target_id
+                    .as_deref()
+                    .ok_or_else(|| "安装资产缺少资产 id".to_string())?,
+                &platform_id,
+                &preview.target_path,
+                &preview.target_type,
+            )?;
+            OperationExecutionResult {
+                operation_id: operation_id.clone(),
+                operation_type: preview.operation_type.clone(),
+                target_id: preview.target_id.clone(),
+                target_path: preview.target_path.clone(),
+                outcome_path: Some(preview.target_path.clone()),
+                backup_id: backup.as_ref().map(|entry| entry.id.clone()),
+                message: "已安装资产".to_string(),
+            }
+        }
         "apply-model-profile" => {
             let profile_id = preview
                 .target_id
@@ -320,6 +414,41 @@ pub fn execute_operation(
     db::insert_operation(conn, &log).map_err(|e| e.to_string())?;
 
     Ok(execution_result)
+}
+
+fn record_asset_installation(
+    conn: &Connection,
+    asset_id: &str,
+    platform_id: &str,
+    target_path: &str,
+    target_type: &str,
+) -> Result<(), String> {
+    let platform_name = PlatformKind::from_str(platform_id)
+        .map(|kind| kind.display_name().to_string())
+        .unwrap_or_else(|| platform_id.to_string());
+
+    db::insert_installation(
+        conn,
+        &db::Installation {
+            id: format!(
+                "install-{}-{}",
+                platform_id,
+                Utc::now().timestamp_nanos_opt().unwrap_or_default()
+            ),
+            asset_id: asset_id.to_string(),
+            platform_id: platform_id.to_string(),
+            platform_name,
+            path: target_path.to_string(),
+            scope: "user".to_string(),
+            enabled: true,
+            official: false,
+            project_local: false,
+            binding_type: target_type.to_ascii_lowercase().replace(' ', "-"),
+            content_hash: None,
+            status: "ok".to_string(),
+        },
+    )
+    .map_err(|e| e.to_string())
 }
 
 fn model_config_spec_for_target(

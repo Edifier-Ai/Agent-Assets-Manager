@@ -145,6 +145,176 @@ fn preview_operation_supports_apply_model_profile_requests() {
 }
 
 #[test]
+fn preview_install_asset_reports_copy_target_and_backup_risk() {
+    let preview =
+        crate::operations::preview_operation(crate::operations::PreviewOperationRequest {
+            operation_type: "install-asset".to_string(),
+            target_id: Some("asset-1".to_string()),
+            target_name: "review".to_string(),
+            target_type: "Command".to_string(),
+            target_path: "~/.kimi-code/commands/review.md".to_string(),
+            source_path: Some("~/.codex/commands/review.md".to_string()),
+            official: false,
+            risk_level: Some("medium".to_string()),
+            platform_id: Some("kimi".to_string()),
+        })
+        .unwrap();
+
+    assert!(preview.supported);
+    assert_eq!(preview.operation_type, "install-asset");
+    assert!(preview
+        .files_to_modify
+        .iter()
+        .any(|path| path.contains("review.md")));
+    assert!(preview
+        .backup_paths
+        .iter()
+        .any(|path| path.contains("review.md")));
+    assert!(preview.needs_restart);
+}
+
+#[test]
+fn preview_install_asset_rejects_readonly_platforms() {
+    let preview =
+        crate::operations::preview_operation(crate::operations::PreviewOperationRequest {
+            operation_type: "install-asset".to_string(),
+            target_id: Some("asset-1".to_string()),
+            target_name: "review".to_string(),
+            target_type: "Command".to_string(),
+            target_path: "~/.claude/commands/review.md".to_string(),
+            source_path: Some("~/.codex/commands/review.md".to_string()),
+            official: false,
+            risk_level: Some("medium".to_string()),
+            platform_id: Some("claude".to_string()),
+        })
+        .unwrap();
+
+    assert!(!preview.supported);
+    assert!(preview.risks.iter().any(|risk| risk.contains("只读")));
+}
+
+#[test]
+fn preview_install_asset_rejects_unsupported_asset_types() {
+    let preview =
+        crate::operations::preview_operation(crate::operations::PreviewOperationRequest {
+            operation_type: "install-asset".to_string(),
+            target_id: Some("asset-1".to_string()),
+            target_name: "persona".to_string(),
+            target_type: "Persona".to_string(),
+            target_path: "~/.gemini/personas/persona.md".to_string(),
+            source_path: Some("~/.codex/personas/persona.md".to_string()),
+            official: false,
+            risk_level: Some("medium".to_string()),
+            platform_id: Some("gemini".to_string()),
+        })
+        .unwrap();
+
+    assert!(!preview.supported);
+    assert!(preview.risks.iter().any(|risk| risk.contains("不支持")));
+}
+
+#[test]
+fn execute_install_asset_copies_source_and_records_installation() {
+    let test_root = std::env::temp_dir().join(format!(
+        "agent-assets-manager-install-{}",
+        chrono::Utc::now().timestamp_nanos_opt().unwrap()
+    ));
+    fs::create_dir_all(&test_root).unwrap();
+
+    let db_path = test_root.join("data.db");
+    crate::db::init_db(&db_path).unwrap();
+    let conn = rusqlite::Connection::open(&db_path).unwrap();
+
+    crate::db::insert_platform(
+        &conn,
+        &crate::db::Platform {
+            id: "kimi".to_string(),
+            name: "Kimi".to_string(),
+            kind: "kimi".to_string(),
+            cli_path: None,
+            version: None,
+            config_roots: vec![test_root.join("kimi").to_string_lossy().to_string()],
+            writable: "partial".to_string(),
+            detected_at: "2026-06-13T10:00:00Z".to_string(),
+            status: "active".to_string(),
+            asset_count: 0,
+            warning_count: 0,
+        },
+    )
+    .unwrap();
+
+    let source_path = test_root.join("review.md");
+    let target_path = test_root.join("kimi").join("commands").join("review.md");
+    fs::write(&source_path, "# Review\n").unwrap();
+    crate::db::insert_asset(
+        &conn,
+        &crate::db::Asset {
+            id: "asset-command-review".to_string(),
+            asset_type: "Command".to_string(),
+            name: "review".to_string(),
+            description: Some("review command".to_string()),
+            author: Some("Local".to_string()),
+            version: Some("0.1.0".to_string()),
+            source: "test".to_string(),
+            canonical_hash: None,
+            directory_hash: None,
+            risk_level: "medium".to_string(),
+            status: "installed,user-installed".to_string(),
+            created_at: "2026-06-13T10:00:00Z".to_string(),
+            updated_at: "2026-06-13T10:00:00Z".to_string(),
+            installations: Vec::new(),
+        },
+    )
+    .unwrap();
+
+    let result = crate::operations::execute_operation(
+        &conn,
+        crate::operations::ExecuteOperationRequest {
+            preview: crate::operations::PreviewOperationRequest {
+                operation_type: "install-asset".to_string(),
+                target_id: Some("asset-command-review".to_string()),
+                target_name: "review".to_string(),
+                target_type: "Command".to_string(),
+                target_path: target_path.to_string_lossy().to_string(),
+                source_path: Some(source_path.to_string_lossy().to_string()),
+                official: false,
+                risk_level: Some("medium".to_string()),
+                platform_id: Some("kimi".to_string()),
+            },
+        },
+    )
+    .unwrap();
+
+    assert_eq!(result.operation_type, "install-asset");
+    assert_eq!(fs::read_to_string(&target_path).unwrap(), "# Review\n");
+
+    let installation_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM installations WHERE asset_id = ?1 AND platform_id = ?2 AND path = ?3",
+            (
+                "asset-command-review",
+                "kimi",
+                target_path.to_string_lossy().to_string(),
+            ),
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(installation_count, 1);
+
+    let operation_row: (String, String) = conn
+        .query_row(
+            "SELECT operation_type, status FROM operations WHERE id = ?1",
+            [&result.operation_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(operation_row.0, "install-asset");
+    assert_eq!(operation_row.1, "completed");
+
+    fs::remove_dir_all(&test_root).unwrap();
+}
+
+#[test]
 fn execute_apply_model_profile_updates_config_and_writes_log() {
     let test_root = std::env::temp_dir().join(format!(
         "agent-assets-manager-apply-profile-{}",

@@ -100,6 +100,23 @@ pub fn run_full_scan_with_custom_roots(
     )
 }
 
+pub fn run_full_scan_with_extra_roots(
+    conn: &Connection,
+    extra_roots: Vec<String>,
+) -> Result<ScanResult, Box<dyn std::error::Error>> {
+    let roots = sanitize_custom_roots(extra_roots);
+
+    if roots.is_empty() {
+        return run_full_scan(conn);
+    }
+
+    let mut adapter_list = adapters::all_adapters();
+    adapter_list.push(Box::new(
+        adapters::generic_cli::GenericCliAdapter::with_roots(roots),
+    ));
+    run_full_scan_with_adapters(conn, adapter_list)
+}
+
 fn sanitize_custom_roots(custom_roots: Vec<String>) -> Vec<String> {
     let mut roots = custom_roots
         .into_iter()

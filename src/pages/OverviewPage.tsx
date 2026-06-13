@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Layers, Box, AlertTriangle, Copy, Brain, ChevronRight,
-  Hexagon, Sun, Cloud, Feather, PawPrint
 } from 'lucide-react';
 import KpiCard from '../components/KpiCard';
 import Badge from '../components/Badge';
+import PlatformIcon from '../components/PlatformIcon';
 import type { AssetFilterId, NavPage, Platform, Asset, Finding, ModelBinding } from '../types';
 
 interface OverviewPageProps {
@@ -16,14 +16,6 @@ interface OverviewPageProps {
   onSelectPlatform: (p: Platform) => void;
   onNavigate: (page: NavPage, options?: { assetFilter?: AssetFilterId }) => void;
 }
-
-const platformIcons: Record<string, React.ElementType> = {
-  codex: Hexagon,
-  claude: Sun,
-  opencode: Cloud,
-  hermes: Feather,
-  openclaw: PawPrint,
-};
 
 export default function OverviewPage({ platforms, assets, findings, modelBindings, onSelectPlatform, onNavigate }: OverviewPageProps) {
   const [selectedFinding, setSelectedFinding] = useState<string | null>(null);
@@ -36,40 +28,40 @@ export default function OverviewPage({ platforms, assets, findings, modelBinding
   return (
     <div className="flex h-full">
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
-        <div className="grid grid-cols-5 gap-4">
-          <KpiCard
-            icon={<Layers className="w-5 h-5 text-blue-600" />}
-            label="平台数"
-            value={platforms.length}
-            color="bg-blue-50"
-          />
-          <KpiCard
-            icon={<Box className="w-5 h-5 text-green-600" />}
-            label="资产总数"
-            value={totalAssets}
-            color="bg-green-50"
-          />
-          <KpiCard
-            icon={<AlertTriangle className="w-5 h-5 text-amber-600" />}
-            label="需要检查"
-            value={needsReview}
-            color="bg-amber-50"
-          />
-          <KpiCard
-            icon={<Copy className="w-5 h-5 text-purple-600" />}
-            label="重复项"
-            value={duplicates}
-            color="bg-purple-50"
-          />
-          <KpiCard
-            icon={<Brain className="w-5 h-5 text-red-600" />}
-            label="模型警告"
-            value={modelWarnings}
-            color="bg-red-50"
-          />
+        <div className="kpi-grid">
+            <KpiCard
+              icon={<Layers className="w-5 h-5 text-gray-900" />}
+              label="平台数"
+              value={platforms.length}
+              color="bg-gray-100"
+            />
+            <KpiCard
+              icon={<Box className="w-5 h-5 text-gray-900" />}
+              label="资产总数"
+              value={totalAssets}
+              color="bg-gray-100"
+            />
+            <KpiCard
+              icon={<AlertTriangle className="w-5 h-5 text-gray-900" />}
+              label="需要检查"
+              value={needsReview}
+              color="bg-gray-100"
+            />
+            <KpiCard
+              icon={<Copy className="w-5 h-5 text-gray-900" />}
+              label="重复项"
+              value={duplicates}
+              color="bg-gray-100"
+            />
+            <KpiCard
+              icon={<Brain className="w-5 h-5 text-gray-900" />}
+              label="模型警告"
+              value={modelWarnings}
+              color="bg-gray-100"
+            />
         </div>
 
-        <div className="grid grid-cols-2 gap-5">
+        <div className="overview-card-grid">
           <div className="section-card">
             <div className="px-5 py-4 border-b border-gray-100">
               <h3 className="font-semibold text-gray-900">已安装平台</h3>
@@ -85,9 +77,7 @@ export default function OverviewPage({ platforms, assets, findings, modelBinding
                   </tr>
                 </thead>
                 <tbody>
-                  {platforms.map((p) => {
-                    const Icon = platformIcons[p.kind] || Layers;
-                    return (
+                  {platforms.map((p) => (
                       <tr
                         key={p.id}
                         className="table-row-hover cursor-pointer border-t border-gray-50"
@@ -95,8 +85,8 @@ export default function OverviewPage({ platforms, assets, findings, modelBinding
                       >
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-2.5">
-                            <Icon className="w-4.5 h-4.5 text-gray-600" />
-                            <span className="font-medium text-gray-900">{p.name}</span>
+                            <PlatformIcon kind={p.kind} platformName={p.name} className="w-5 h-5 shrink-0" />
+                            <span className="font-medium text-gray-900 whitespace-nowrap">{p.name}</span>
                           </div>
                         </td>
                         <td className="px-5 py-3">
@@ -111,8 +101,7 @@ export default function OverviewPage({ platforms, assets, findings, modelBinding
                           )}
                         </td>
                       </tr>
-                    );
-                  })}
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -162,9 +151,8 @@ export default function OverviewPage({ platforms, assets, findings, modelBinding
                       </td>
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-1.5">
-                          {f.platformName === 'Codex' && <Hexagon className="w-3.5 h-3.5 text-gray-500" />}
-                          {f.platformName === 'Claude Code' && <Sun className="w-3.5 h-3.5 text-gray-500" />}
-                          <span className="text-gray-600">{f.platformName}</span>
+                          <PlatformIcon platformName={f.platformName} className="w-5 h-5 shrink-0" />
+                          <span className="text-gray-600 whitespace-nowrap">{f.platformName}</span>
                         </div>
                       </td>
                       <td className="px-5 py-3">

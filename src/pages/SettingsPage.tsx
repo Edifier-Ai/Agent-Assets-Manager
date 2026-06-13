@@ -96,7 +96,7 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
     <div className="flex h-full overflow-y-auto">
       <div className="flex-1 p-5 max-w-2xl mx-auto w-full space-y-5">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">设置</h2>
+          <h2 className="text-xl font-bold text-gray-900 whitespace-nowrap">设置</h2>
           <p className="text-sm text-gray-500 mt-1">配置扫描、数据、安全和外观偏好</p>
         </div>
 
@@ -109,7 +109,7 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
           </div>
           <div className="p-5 space-y-4">
             <div>
-              <div className="text-sm font-medium text-gray-700 mb-2">默认扫描路径</div>
+              <div className="text-sm font-medium text-gray-700 mb-2 whitespace-nowrap">默认扫描路径</div>
               <div className="space-y-2">
                 {scanPaths.map((path, i) => (
                   <div key={i} className="flex items-center gap-2">
@@ -132,14 +132,14 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
                   className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  添加扫描路径
+                  <span className="whitespace-nowrap">添加扫描路径</span>
                 </button>
               </div>
             </div>
 
             <div className="pt-3 border-t border-gray-100 space-y-3">
               <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-sm text-gray-700">包含项目本地路径</span>
+                <span className="text-sm text-gray-700 whitespace-nowrap">包含项目本地路径</span>
                 <button
                   onClick={() => setIncludeProjectLocal(!includeProjectLocal)}
                   className={`w-11 h-6 rounded-full transition-colors duration-200 ${includeProjectLocal ? 'bg-gray-900' : 'bg-gray-200'}`}
@@ -148,7 +148,7 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
                 </button>
               </label>
               <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-sm text-gray-700">启用深度扫描</span>
+                <span className="text-sm text-gray-700 whitespace-nowrap">启用深度扫描</span>
                 <button
                   onClick={() => setEnableDeepScan(!enableDeepScan)}
                   className={`w-11 h-6 rounded-full transition-colors duration-200 ${enableDeepScan ? 'bg-gray-900' : 'bg-gray-200'}`}
@@ -169,7 +169,7 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
           </div>
           <div className="p-5 space-y-4">
             <div>
-              <div className="text-sm font-medium text-gray-700 mb-1.5">SQLite 数据库位置</div>
+              <div className="text-sm font-medium text-gray-700 mb-1.5 whitespace-nowrap">SQLite 数据库位置</div>
               <input
                 value={dbLocation}
                 onChange={(event) => setDbLocation(event.target.value)}
@@ -177,7 +177,7 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
               />
             </div>
             <div>
-              <div className="text-sm font-medium text-gray-700 mb-1.5">应用管理回收站位置</div>
+              <div className="text-sm font-medium text-gray-700 mb-1.5 whitespace-nowrap">应用管理回收站位置</div>
               <input
                 value={trashLocation}
                 onChange={(event) => setTrashLocation(event.target.value)}
@@ -195,7 +195,7 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
             </div>
           </div>
           <div className="p-5">
-            <div className="text-sm font-medium text-gray-700 mb-3">主题</div>
+            <div className="text-sm font-medium text-gray-700 mb-3 whitespace-nowrap">主题</div>
             <div className="grid grid-cols-3 gap-3">
               {[
                 { id: 'system', label: '跟随系统', icon: Monitor },
@@ -210,7 +210,7 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
                     className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all duration-200 ${theme === t.id ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-100 hover:border-gray-200 text-gray-600'}`}
                   >
                     <Icon className="w-5 h-5" />
-                    <span className="text-sm font-medium">{t.label}</span>
+                    <span className="text-sm font-medium whitespace-nowrap">{t.label}</span>
                   </button>
                 );
               })}
@@ -227,7 +227,7 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
           </div>
           <div className="p-5">
             <div className="p-3 rounded-lg bg-gray-50 text-sm text-gray-600">
-              <div className="font-medium text-gray-700 mb-1">安全确认级别</div>
+              <div className="font-medium text-gray-700 mb-1 whitespace-nowrap">安全确认级别</div>
               <p>所有状态变更操作都需要预览确认。删除操作默认移入回收站，永久删除需要二次确认。</p>
             </div>
           </div>
@@ -238,7 +238,7 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
             onClick={handleReset}
             className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
           >
-            重置
+            <span className="whitespace-nowrap">重置</span>
           </button>
           <button
             onClick={handleSave}
@@ -248,12 +248,12 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
             {saved ? (
               <>
                 <CheckCircle2 className="w-4 h-4" />
-                已保存
+                <span className="whitespace-nowrap">已保存</span>
               </>
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                {saving ? '保存中...' : '保存设置'}
+                <span className="whitespace-nowrap">{saving ? '保存中...' : '保存设置'}</span>
               </>
             )}
           </button>

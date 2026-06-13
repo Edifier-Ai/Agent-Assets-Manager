@@ -37,7 +37,7 @@
   }
   
   .nav-item {
-    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 transition-all duration-200 cursor-pointer;
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 transition-all duration-200 cursor-pointer whitespace-nowrap;
   }
   
   .nav-item:hover {
@@ -49,7 +49,7 @@
   }
   
   .kpi-card {
-    @apply bg-white rounded-xl border border-gray-100 p-5 transition-all duration-200;
+    @apply bg-white rounded-xl border border-gray-100 p-5 transition-all duration-200 min-w-[140px];
     box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
   }
   
@@ -61,6 +61,35 @@
   .section-card {
     @apply bg-white rounded-xl border border-gray-100 overflow-hidden;
     box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+  }
+
+  .section-card h2,
+  .section-card h3,
+  .section-card th,
+  .single-line-label {
+    @apply whitespace-nowrap;
+  }
+
+  .kpi-grid {
+    @apply grid gap-4;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+
+  .overview-card-grid {
+    @apply grid gap-5;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  }
+
+  .platform-layout {
+    @apply flex h-full;
+  }
+
+  .platform-list-pane {
+    @apply flex-1 overflow-y-auto p-5 space-y-5;
+  }
+
+  .platform-detail-pane {
+    @apply w-80 bg-white border-l border-gray-100 overflow-y-auto p-5 shrink-0;
   }
   
   .table-row-hover {
@@ -90,7 +119,7 @@
   }
   
   .filter-chip {
-    @apply px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer;
+    @apply px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer whitespace-nowrap;
   }
   
   .filter-chip:hover {
@@ -123,6 +152,20 @@
   
   .scan-step.error {
     @apply text-red-700;
+  }
+}
+
+@media (max-width: 900px) {
+  .platform-layout {
+    @apply flex-col overflow-y-auto;
+  }
+
+  .platform-list-pane {
+    @apply min-w-0 overflow-visible;
+  }
+
+  .platform-detail-pane {
+    @apply w-full border-l-0 border-t overflow-visible;
   }
 }
 

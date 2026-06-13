@@ -121,6 +121,34 @@ pub fn restore_from_backup(backup_path: &str, original_path: &str) -> Result<(),
     Ok(())
 }
 
+pub fn copy_asset_to_target(source_path: &str, target_path: &str) -> Result<(), String> {
+    let src = expand_home(source_path);
+    let target = expand_home(target_path);
+
+    if !src.exists() {
+        return Err(format!("源路径不存在: {}", source_path));
+    }
+
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+
+    if src.is_dir() {
+        if target.exists() {
+            if target.is_dir() {
+                fs::remove_dir_all(&target).map_err(|e| e.to_string())?;
+            } else {
+                fs::remove_file(&target).map_err(|e| e.to_string())?;
+            }
+        }
+        copy_dir_all(&src, &target).map_err(|e| e.to_string())?;
+    } else {
+        fs::copy(&src, &target).map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
 fn unique_destination(parent: &Path, base_name: &str) -> PathBuf {
     let mut candidate = parent.join(base_name);
     let mut suffix = 1;
