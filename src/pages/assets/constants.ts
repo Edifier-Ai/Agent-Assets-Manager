@@ -59,19 +59,33 @@ export const defaultAssetTypeSubdirs: Partial<Record<AssetType, string>> = {
   Tool: 'tools',
 };
 
-export const assetFilters: Array<{ id: AssetFilterId; label: string }> = [
+export const configAssetTypes: AssetType[] = [
+  'Memory',
+  'Persona',
+  'Provider Config',
+  'Model Config',
+  'CLI Runtime',
+];
+
+export const assetPrimaryFilters: Array<{ id: AssetFilterId; label: string }> = [
   { id: 'all', label: '全部' },
   { id: 'Skill', label: '技能' },
   { id: 'Agent', label: 'Agent' },
   { id: 'Command', label: '命令' },
   { id: 'MCP Server', label: 'MCP' },
   { id: 'Rule', label: '规则' },
-  { id: 'Memory', label: '记忆' },
-  { id: 'Persona', label: '人格' },
-  { id: 'Model Config', label: '模型配置' },
+  { id: 'config', label: '配置' },
+];
+
+export const assetInsightFilters: Array<{ id: AssetFilterId; label: string }> = [
   { id: 'needs-review', label: '需要检查' },
   { id: 'duplicate', label: '重复项' },
   { id: 'conflict', label: '冲突' },
   { id: 'high', label: '风险' },
   { id: 'project-local', label: '项目本地' },
+];
+
+export const assetFilters: Array<{ id: AssetFilterId; label: string }> = [
+  ...assetPrimaryFilters,
+  ...assetInsightFilters,
 ];

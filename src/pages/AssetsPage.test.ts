@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { Asset } from '../types';
 import {
   assetFilters,
+  assetInsightFilters,
+  assetPrimaryFilters,
   buildInstallOperationRequest,
   explainInstallTargetPath,
   groupAssetsByType,
@@ -53,16 +55,35 @@ function makeInstalledAsset(type: Asset['type'], path: string): Asset {
 }
 
 describe('asset filters', () => {
-  it('includes contextual filters for rules memories and personas', () => {
-    expect(assetFilters.map((filter) => filter.id)).toEqual(
-      expect.arrayContaining(['Rule', 'Memory', 'Persona']),
-    );
+  it('keeps the primary asset category row focused on stable asset types', () => {
+    expect(assetPrimaryFilters.map((filter) => filter.id)).toEqual([
+      'all',
+      'Skill',
+      'Agent',
+      'Command',
+      'MCP Server',
+      'Rule',
+      'config',
+    ]);
+    expect(assetInsightFilters.map((filter) => filter.id)).toEqual([
+      'needs-review',
+      'duplicate',
+      'conflict',
+      'high',
+      'project-local',
+    ]);
+    expect(assetFilters.map((filter) => filter.id)).toEqual([
+      ...assetPrimaryFilters.map((filter) => filter.id),
+      ...assetInsightFilters.map((filter) => filter.id),
+    ]);
   });
 
   it('matches contextual type filters and status filters', () => {
     expect(matchesAssetFilter(makeAsset('Rule'), 'Rule')).toBe(true);
-    expect(matchesAssetFilter(makeAsset('Memory'), 'Memory')).toBe(true);
-    expect(matchesAssetFilter(makeAsset('Persona'), 'Persona')).toBe(true);
+    expect(matchesAssetFilter(makeAsset('Memory'), 'config')).toBe(true);
+    expect(matchesAssetFilter(makeAsset('Persona'), 'config')).toBe(true);
+    expect(matchesAssetFilter(makeAsset('Provider Config'), 'config')).toBe(true);
+    expect(matchesAssetFilter(makeAsset('Command'), 'config')).toBe(false);
     expect(matchesAssetFilter(makeAsset('Command'), 'Rule')).toBe(false);
     expect(matchesAssetFilter(makeAsset('Skill', ['installed', 'project-local']), 'project-local')).toBe(true);
   });

@@ -2,7 +2,7 @@ export type NavPage = 'overview' | 'assets' | 'platforms' | 'models' | 'diagnost
 
 export type AssetType = 'Skill' | 'Agent' | 'Command' | 'MCP Server' | 'Tool' | 'Rule' | 'Memory' | 'Persona' | 'Provider Config' | 'Model Config' | 'CLI Runtime';
 
-export type AssetFilterId = 'all' | AssetType | 'needs-review' | 'duplicate' | 'conflict' | 'high' | 'project-local';
+export type AssetFilterId = 'all' | 'config' | AssetType | 'needs-review' | 'duplicate' | 'conflict' | 'high' | 'project-local';
 
 export type RiskLevel = 'low' | 'medium' | 'high';
 

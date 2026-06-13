@@ -1,9 +1,20 @@
-import { Filter, Grid2X2, List, Plus, Search, X } from 'lucide-react';
+import { useMemo } from 'react';
+import { AlertTriangle, Copy, FileWarning, Filter, FolderGit2, Grid2X2, List, Plus, Search, ShieldAlert, X } from 'lucide-react';
 import Tooltip from './Tooltip';
-import type { AssetFilterId } from '../types';
-import { assetFilters } from '../pages/assets/constants';
+import type { Asset, AssetFilterId } from '../types';
+import { assetInsightFilters, assetPrimaryFilters } from '../pages/assets/constants';
+import { matchesAssetFilter } from '../pages/assets/logic';
+
+const insightIconByFilter = {
+  'needs-review': FileWarning,
+  duplicate: Copy,
+  conflict: AlertTriangle,
+  high: ShieldAlert,
+  'project-local': FolderGit2,
+} as const;
 
 interface AssetToolbarProps {
+  assets: Asset[];
   query: string;
   onQueryChange: (query: string) => void;
   viewMode: 'list' | 'cards';
@@ -13,6 +24,7 @@ interface AssetToolbarProps {
 }
 
 export default function AssetToolbar({
+  assets,
   query,
   onQueryChange,
   viewMode,
@@ -20,6 +32,15 @@ export default function AssetToolbar({
   activeFilter,
   onFilterChange,
 }: AssetToolbarProps) {
+  const insightCounts = useMemo(() => (
+    Object.fromEntries(
+      assetInsightFilters.map((filter) => [
+        filter.id,
+        assets.filter((asset) => matchesAssetFilter(asset, filter.id)).length,
+      ]),
+    ) as Record<(typeof assetInsightFilters)[number]['id'], number>
+  ), [assets]);
+
   return (
     <div className="border-b border-gray-100 bg-white/70 px-5 py-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -80,19 +101,50 @@ export default function AssetToolbar({
           </button>
         </div>
       </div>
-      <div className="mt-4 overflow-x-auto">
-        <div className="flex min-w-max items-center gap-2" role="radiogroup" aria-label="资产类型筛选">
-          {assetFilters.map((filter) => (
-            <button
-              key={filter.id}
-              role="radio"
-              aria-checked={activeFilter === filter.id}
-              onClick={() => onFilterChange(filter.id)}
-              className={`filter-chip ${activeFilter === filter.id ? 'active' : 'bg-gray-50 text-gray-600'}`}
-            >
-              {filter.label}
-            </button>
-          ))}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0 overflow-x-auto">
+          <div className="flex min-w-max items-center gap-2" role="radiogroup" aria-label="资产类型筛选">
+            {assetPrimaryFilters.map((filter) => (
+              <button
+                key={filter.id}
+                role="radio"
+                aria-checked={activeFilter === filter.id}
+                onClick={() => onFilterChange(filter.id)}
+                className={`filter-chip ${activeFilter === filter.id ? 'active' : 'bg-gray-50 text-gray-600'}`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5" aria-label="治理视图">
+          {assetInsightFilters.map((filter) => {
+            const Icon = insightIconByFilter[filter.id as keyof typeof insightIconByFilter];
+            const count = insightCounts[filter.id];
+            const active = activeFilter === filter.id;
+
+            return (
+              <Tooltip key={filter.id} content={filter.label}>
+                <button
+                  onClick={() => onFilterChange(filter.id)}
+                  aria-pressed={active}
+                  className={`flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-xs font-medium transition-colors ${
+                    active
+                      ? 'border-gray-900 bg-gray-900 text-white'
+                      : 'border-gray-200 bg-white text-gray-500 hover:bg-gray-50'
+                  }`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  <span className="whitespace-nowrap">{filter.label}</span>
+                  <span className={`rounded-full px-1.5 py-0.5 text-[11px] leading-none ${
+                    active ? 'bg-white/15 text-white' : 'bg-gray-100 text-gray-500'
+                  }`}>
+                    {count}
+                  </span>
+                </button>
+              </Tooltip>
+            );
+          })}
         </div>
       </div>
     </div>

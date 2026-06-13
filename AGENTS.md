@@ -1,25 +1,15 @@
 <claude-mem-context>
 # Memory Context
 
-# [Agent Assets Manager] recent context, 2026-06-13 6:27pm GMT+8
+# [Agent Assets Manager] recent context, 2026-06-13 7:15pm GMT+8
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (11,937t read) | 2,964,649t work | 100% savings
+Stats: 50 obs (11,300t read) | 3,312,035t work | 100% savings
 
 ### Jun 13, 2026
-1784 2:50p 🔵 HEAD already contains version 0.1.1 before the working tree was synced
-1819 " ✅ Agent Assets Manager version bumped to 0.1.7
-1820 " 🟣 Agent Assets Manager v0.1.7 DMG built successfully
-1821 " 🔵 Persistent Tauri bundle identifier warning
-1785 2:51p 🔵 Tauri places the final DMG in bundle/dmg, not bundle/macos
-1786 2:55p ✅ UI polish requested: non-wrapping titles and icon refresh
-1787 2:56p 🔵 Current icon and title styling strategy mapped
-1788 " 🔵 macOS icon tooling availability confirmed
-1791 " ✅ Implemented non-wrapping labels and monochrome platform icons
-1796 " ✅ UI styling update requested for non-wrapping titles and icon replacement
 1789 2:57p 🔵 PIL available as icon generation engine
 1790 " 🔵 Platform detection undercounting reported in Agent Assets Manager
 1792 2:58p 🔵 Platform detection undercounts because Tauri app PATH lacks user shell directories
@@ -62,6 +52,7 @@ S115 修复点击“安装到全部平台”后浮层过高、无法点击的问
 1823 " 🟣 Agent Assets Manager v0.1.7 DMG build in progress
 1824 6:16p 🟣 Agent Assets Manager v0.1.7 DMG build completed
 1825 " 🟣 Agent Assets Manager v0.1.7 DMG artifact verified
+1834 " ✅ Agent Assets Manager v0.1.7 shipped as macOS DMG
 1826 " ✅ Version bump changes committed or cleared from working tree
 1828 6:19p 🔴 修复 PreviewModal 浮层过高问题
 S116 修复点击“安装到全部平台”后浮层过高、无法点击的问题 (Jun 13 at 6:19 PM)
@@ -70,6 +61,15 @@ S116 修复点击“安装到全部平台”后浮层过高、无法点击的问
 1831 " 🔵 Remaining implementation gaps and code-quality notes
 1832 6:24p 🔵 Add Asset button in AssetToolbar has no click handler
 1833 " 🔵 N+1 asset query already optimized with single JOIN and LinkedHashMap
+1835 7:05p ✅ Agent Assets Manager version bumped to 0.1.8
+1836 " 🟣 Frontend test suite expanded to 48 tests across 12 files
+1838 " 🟣 Agent Assets Manager v0.1.8 Rust tests confirmed passing
+1839 " 🟣 Agent Assets Manager v0.1.8 DMG build in progress
+1837 " 🟣 Agent Assets Manager v0.1.8 tests passed and version confirmed
+1840 7:06p 🟣 Agent Assets Manager v0.1.8 DMG build completed
+1841 " 🟣 Agent Assets Manager v0.1.8 DMG artifact verified
+1842 7:08p 🔵 Project context for category optimization discussion
+1843 " 🔵 Agent Assets Manager asset model abstraction
 
-Access 2965k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 3312k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

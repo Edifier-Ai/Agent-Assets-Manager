@@ -3,6 +3,7 @@ import { getAssetTypeLabel } from '../../utils';
 import {
   assetTypeOrder,
   assetTypeSubdirByPlatform,
+  configAssetTypes,
   defaultAssetTypeSubdirs,
   type PlatformTarget,
 } from './constants';
@@ -23,6 +24,7 @@ export interface InstallTargetPathExplanation {
 
 export function matchesAssetFilter(asset: Asset, activeFilter: AssetFilterId): boolean {
   if (activeFilter === 'all') return true;
+  if (activeFilter === 'config') return configAssetTypes.includes(asset.type);
   if (activeFilter === 'needs-review') return asset.status.includes('needs-review');
   if (activeFilter === 'duplicate') return asset.status.includes('duplicate');
   if (activeFilter === 'conflict') return asset.status.includes('conflict');
