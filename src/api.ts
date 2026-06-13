@@ -24,6 +24,9 @@ import {
   mapScanRunDto,
   mapScanSummaryDto,
   mapSettingsDto,
+  mapBatchSyncPreviewDto,
+  mapBatchSyncResultDto,
+  mapBatchSyncRequest,
   type AppSettingsDto,
   type AssetDto,
   type BackupDto,
@@ -37,6 +40,8 @@ import {
   type PlatformDto,
   type ScanRunDto,
   type ScanSummaryDto,
+  type BatchSyncPreviewDto,
+  type BatchSyncResultDto,
 } from './mappers';
 import type {
   AppSettings,
@@ -54,6 +59,9 @@ import type {
   ScanRun,
   ScanSummary,
   SaveSettingsInput,
+  BatchSyncPreview,
+  BatchSyncResult,
+  BatchSyncRequest,
 } from './types';
 
 interface ApiResponse<T> {
@@ -225,4 +233,81 @@ export async function saveSettings(settings: SaveSettingsInput): Promise<string>
     return `Development fallback: settings were not persisted (${settings.theme}).`;
   }
   return invokeCmd('save_settings', { request: mapSaveSettingsInput(settings) });
+}
+
+export async function previewSkillSyncPlan(
+  assetIds: string[],
+  strategy: string,
+  sourcePlatformId?: string,
+): Promise<BatchSyncPreview> {
+  if (!isTauriRuntime()) {
+    return buildFallbackBatchSyncPreview(assetIds, strategy, sourcePlatformId);
+  }
+  const data = await invokeCmd<BatchSyncPreviewDto>('preview_skill_sync_plan', {
+    request: { asset_ids: assetIds, strategy, source_platform_id: sourcePlatformId ?? null },
+  });
+  return mapBatchSyncPreviewDto(data);
+}
+
+function buildFallbackBatchSyncPreview(
+  assetIds: string[],
+  strategy: string,
+  sourcePlatformId?: string,
+): BatchSyncPreview {
+  const selectedAssets = fallbackAssets.filter((asset) => assetIds.includes(asset.id) && asset.type === 'Skill');
+  const items = selectedAssets.flatMap((asset) => {
+    const sourceInstallation = sourcePlatformId
+      ? asset.installations.find((installation) => installation.platformId === sourcePlatformId)
+      : asset.installations[0];
+    if (!sourceInstallation) return [];
+
+    return fallbackPlatforms
+      .filter((platform) => platform.status === 'active')
+      .map((platform) => {
+        const existing = asset.installations.find((installation) => installation.platformId === platform.id);
+        const targetPath = existing?.path ?? `${platform.configRoots[0]?.replace(/\/+$/g, '')}/${
+          platform.id === 'cursor' ? 'skills-cursor' : 'skills'
+        }/${asset.name}`;
+        const action = platform.writable === 'readonly'
+          ? 'skip'
+          : existing
+            ? 'skip'
+            : 'install';
+        return {
+          assetId: asset.id,
+          assetName: asset.name,
+          targetPlatform: platform.id,
+          targetPlatformName: platform.name,
+          targetPath,
+          sourcePath: sourceInstallation.path.replace(/\/SKILL\.md$/i, ''),
+          action,
+          reason: action === 'install' ? '将安装到新平台' : existing ? '已安装且内容一致' : `${platform.name} 当前只读`,
+          supported: action === 'install',
+          existingHash: existing?.contentHash,
+          sourceHash: sourceInstallation.contentHash || asset.canonicalHash || asset.directoryHash,
+        };
+      });
+  });
+  const installCount = items.filter((item) => item.action === 'install').length;
+  const skipCount = items.filter((item) => item.action === 'skip').length;
+
+  return {
+    strategy,
+    totalItems: items.length,
+    items,
+    hasConflicts: false,
+    summary: `共 ${items.length} 项：${installCount} 安装、${skipCount} 跳过、0 冲突`,
+  };
+}
+
+export async function executeSkillSyncPlan(
+  request: BatchSyncRequest,
+): Promise<BatchSyncResult> {
+  if (!isTauriRuntime()) {
+    throw new Error('Batch sync operations require the Tauri desktop app.');
+  }
+  const data = await invokeCmd<BatchSyncResultDto>('execute_skill_sync_plan', {
+    request: mapBatchSyncRequest(request),
+  });
+  return mapBatchSyncResultDto(data);
 }

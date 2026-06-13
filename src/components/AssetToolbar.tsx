@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { AlertTriangle, Copy, FileWarning, Filter, FolderGit2, Grid2X2, List, Plus, Search, ShieldAlert, X } from 'lucide-react';
+import { AlertTriangle, CheckSquare, Copy, FileWarning, Filter, FolderGit2, Grid2X2, List, Plus, Search, ShieldAlert, X } from 'lucide-react';
 import Tooltip from './Tooltip';
 import type { Asset, AssetFilterId } from '../types';
 import { assetInsightFilters, assetPrimaryFilters } from '../pages/assets/constants';
@@ -21,6 +21,10 @@ interface AssetToolbarProps {
   onViewModeChange: (mode: 'list' | 'cards') => void;
   activeFilter: AssetFilterId;
   onFilterChange: (filter: AssetFilterId) => void;
+  isSelectionMode?: boolean;
+  onToggleSelectionMode?: () => void;
+  selectionCount?: number;
+  selectionTotal?: number;
 }
 
 export default function AssetToolbar({
@@ -31,6 +35,9 @@ export default function AssetToolbar({
   onViewModeChange,
   activeFilter,
   onFilterChange,
+  isSelectionMode = false,
+  onToggleSelectionMode,
+  selectionCount = 0,
 }: AssetToolbarProps) {
   const insightCounts = useMemo(() => (
     Object.fromEntries(
@@ -95,10 +102,29 @@ export default function AssetToolbar({
               <span className="whitespace-nowrap">卡片</span>
             </button>
           </div>
-          <button className="flex h-9 items-center gap-1.5 rounded-lg bg-gray-900 px-3 text-sm font-medium text-white hover:bg-gray-800">
+          <button
+            className="flex h-9 items-center gap-1.5 rounded-lg bg-gray-900 px-3 text-sm font-medium text-white hover:bg-gray-800"
+          >
             <Plus className="h-4 w-4" />
             <span className="whitespace-nowrap">新增资产</span>
           </button>
+          {onToggleSelectionMode && (
+            <Tooltip content={isSelectionMode ? '退出选择模式' : '进入选择模式（仅 Skills）'}>
+              <button
+                onClick={onToggleSelectionMode}
+                className={`flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors ${
+                  isSelectionMode
+                    ? 'border-blue-200 bg-blue-50 text-blue-700'
+                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <CheckSquare className="h-4 w-4" />
+                <span className="whitespace-nowrap">
+                  {isSelectionMode ? `选择中 ${selectionCount}` : '选择'}
+                </span>
+              </button>
+            </Tooltip>
+          )}
         </div>
       </div>
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3">

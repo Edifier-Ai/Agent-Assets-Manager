@@ -67,6 +67,8 @@ pub fn run() {
             commands::get_asset_detail,
             commands::preview_operation,
             commands::execute_operation,
+            commands::preview_skill_sync_plan,
+            commands::execute_skill_sync_plan,
             commands::get_settings,
             commands::save_settings,
         ])

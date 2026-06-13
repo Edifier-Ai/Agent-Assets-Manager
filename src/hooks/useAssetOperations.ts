@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import * as api from '../api';
-import type { Asset, OperationPreview, OperationRequest } from '../types';
+import type { Asset, BatchSyncPreview, BatchSyncRequest, OperationPreview, OperationRequest } from '../types';
 import type { PlatformTarget } from '../pages/assets/constants';
 import { buildInstallOperationRequest, aggregatePreviews, explainInstallTargetPath, isInstalledOnPlatform, normalizePlatform } from '../pages/assets/logic';
 
@@ -27,6 +27,7 @@ export function useAssetOperations({ availablePlatformTargets, showToast, onRefr
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [pendingDestructive, setPendingDestructive] = useState<PendingDestructive | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
+  const [pendingBatchSync, setPendingBatchSync] = useState<BatchSyncRequest | null>(null);
 
   const buildOperationRequest = (asset: Asset, operation: string, platformId?: string): OperationRequest | null => {
     const installation = platformId
@@ -158,7 +159,30 @@ export function useAssetOperations({ availablePlatformTargets, showToast, onRefr
   };
 
   const handleConfirm = async () => {
-    if (previewRequests.length === 0 || !preview) return;
+    if (!preview) return;
+
+    if (pendingBatchSync) {
+      const actionKey = `confirm-batch:${pendingBatchSync.strategy}:${pendingBatchSync.items.length}`;
+      setBusyKey(actionKey);
+      setProgress({ current: 0, total: Math.max(pendingBatchSync.items.length, 1) });
+      try {
+        const result = await api.executeSkillSyncPlan(pendingBatchSync);
+        showToast(result.message, result.failedCount > 0 ? 'warning' : 'success');
+        setPreview(null);
+        setPreviewRequests([]);
+        setPendingBatchSync(null);
+        await onRefresh?.();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '批量同步执行失败';
+        showToast(message, 'error');
+      } finally {
+        setBusyKey(null);
+        setProgress(null);
+      }
+      return;
+    }
+
+    if (previewRequests.length === 0) return;
 
     const actionKey = `confirm:${previewRequests.map((request) => request.targetPath).join('|')}`;
     setBusyKey(actionKey);
@@ -173,6 +197,7 @@ export function useAssetOperations({ availablePlatformTargets, showToast, onRefr
       showToast(results.length > 1 ? `已安装到 ${results.length} 个平台` : results[0]?.message ?? '已完成安装', 'success');
       setPreview(null);
       setPreviewRequests([]);
+      setPendingBatchSync(null);
       await onRefresh?.();
     } catch (error) {
       const message = error instanceof Error ? error.message : '执行操作失败';
@@ -183,9 +208,64 @@ export function useAssetOperations({ availablePlatformTargets, showToast, onRefr
     }
   };
 
+  const handleBatchInstall = async (
+    skills: Asset[],
+    strategy: 'install-all' | 'sync-from-source',
+    sourcePlatformId?: string,
+  ) => {
+    if (skills.length === 0) {
+      showToast('未选择任何 Skill', 'warning');
+      return;
+    }
+
+    const actionKey = `batch-install:${strategy}:${skills.length}`;
+    setBusyKey(actionKey);
+
+    try {
+      const batchPreview = await api.previewSkillSyncPlan(
+        skills.map((skill) => skill.id),
+        strategy,
+        strategy === 'sync-from-source' ? sourcePlatformId : undefined,
+      );
+      const installItems = batchPreview.items.filter((item) => item.action === 'install' && item.supported);
+
+      if (installItems.length === 0) {
+        setPreview(batchSyncPreviewToOperationPreview(batchPreview, skills.length));
+        setPreviewRequests([]);
+        setPendingBatchSync(null);
+        showToast(batchPreview.hasConflicts ? '存在内容冲突，需要先选择处理策略' : '没有需要同步的目标平台', 'info');
+        return;
+      }
+
+      setPreview(batchSyncPreviewToOperationPreview(batchPreview, skills.length));
+      setPreviewRequests([]);
+      setPendingBatchSync({
+        strategy,
+        sourcePlatformId: strategy === 'sync-from-source' ? sourcePlatformId : undefined,
+        items: batchPreview.items.map((item) => ({
+          assetId: item.assetId,
+          assetName: item.assetName,
+          sourcePath: item.sourcePath,
+          targetPlatform: item.targetPlatform,
+          targetPath: item.targetPath,
+          action: item.action,
+          existingHash: item.existingHash,
+          sourceHash: item.sourceHash,
+        })),
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '批量预览生成失败';
+      showToast(message, 'error');
+    } finally {
+      setBusyKey(null);
+      setProgress(null);
+    }
+  };
+
   const clearPreview = () => {
     setPreview(null);
     setPreviewRequests([]);
+    setPendingBatchSync(null);
   };
 
   return {
@@ -199,5 +279,39 @@ export function useAssetOperations({ availablePlatformTargets, showToast, onRefr
     clearPreview,
     confirmDestructive,
     cancelDestructive,
+    handleBatchInstall,
+  };
+}
+
+function batchSyncPreviewToOperationPreview(
+  batchPreview: BatchSyncPreview,
+  selectedSkillCount: number,
+): OperationPreview {
+  const installItems = batchPreview.items.filter((item) => item.action === 'install' && item.supported);
+  const conflictItems = batchPreview.items.filter((item) => item.action === 'conflict');
+  const skippedUnsupported = batchPreview.items.filter((item) => !item.supported && item.action !== 'conflict');
+  const riskLines = [
+    batchPreview.summary,
+    ...conflictItems.slice(0, 6).map((item) => `${item.assetName} 在 ${item.targetPlatformName} 内容不同，已默认跳过`),
+    ...skippedUnsupported.slice(0, 4).map((item) => `${item.assetName} 在 ${item.targetPlatformName}: ${item.reason}`),
+  ];
+
+  if (conflictItems.length > 6) {
+    riskLines.push(`还有 ${conflictItems.length - 6} 个冲突未展开`);
+  }
+
+  return {
+    operationType: `batch-sync-${batchPreview.strategy}`,
+    targetName: `${selectedSkillCount} 个 Skill`,
+    targetType: 'Skill',
+    targetPath: installItems.map((item) => item.targetPath).join('\n') || '没有可执行的目标路径',
+    sourcePath: batchPreview.strategy === 'sync-from-source' ? installItems[0]?.sourcePath : undefined,
+    filesToModify: installItems.map((item) => item.targetPath),
+    filesToMove: Array.from(new Set(installItems.map((item) => item.sourcePath))),
+    backupPaths: installItems.map((item) => item.targetPath),
+    writtenKeys: installItems.map((item) => `${item.assetName} -> ${item.targetPlatformName}`),
+    needsRestart: installItems.length > 0,
+    risks: riskLines.filter(Boolean),
+    supported: installItems.length > 0,
   };
 }

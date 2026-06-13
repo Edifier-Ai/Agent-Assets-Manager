@@ -566,3 +566,136 @@ export function mapOperationExecutionResultDto(
     message: dto.message,
   };
 }
+
+// Batch Sync DTOs
+export interface BatchSyncPreviewDto {
+  strategy: string;
+  total_items: number;
+  items: SkillSyncItemPreviewDto[];
+  has_conflicts: boolean;
+  summary: string;
+}
+
+export interface SkillSyncItemPreviewDto {
+  asset_id: string;
+  asset_name: string;
+  target_platform: string;
+  target_platform_name: string;
+  target_path: string;
+  source_path: string;
+  action: string;
+  reason: string;
+  supported: boolean;
+  existing_hash?: string | null;
+  source_hash: string;
+}
+
+export interface BatchSyncResultDto {
+  operation_id: string;
+  strategy: string;
+  total_items: number;
+  success_count: number;
+  skipped_count: number;
+  failed_count: number;
+  items: BatchSyncItemResultDto[];
+  message: string;
+}
+
+export interface BatchSyncItemResultDto {
+  asset_id: string;
+  asset_name: string;
+  target_platform: string;
+  target_path: string;
+  status: string;
+  message: string;
+  backup_id?: string | null;
+}
+
+export interface BatchSyncRequestDto {
+  strategy: string;
+  source_platform_id?: string | null;
+  items: SkillSyncItemDto[];
+}
+
+export interface SkillSyncItemDto {
+  asset_id: string;
+  asset_name: string;
+  source_path: string;
+  target_platform: string;
+  target_path: string;
+  action: string;
+  existing_hash?: string | null;
+  source_hash: string;
+}
+
+export function mapBatchSyncPreviewDto(dto: BatchSyncPreviewDto): import('../types').BatchSyncPreview {
+  return {
+    strategy: dto.strategy,
+    totalItems: dto.total_items,
+    items: (dto.items ?? []).map(mapSkillSyncItemPreviewDto),
+    hasConflicts: dto.has_conflicts,
+    summary: dto.summary,
+  };
+}
+
+export function mapSkillSyncItemPreviewDto(dto: SkillSyncItemPreviewDto): import('../types').BatchSyncItemPreview {
+  return {
+    assetId: dto.asset_id,
+    assetName: dto.asset_name,
+    targetPlatform: dto.target_platform,
+    targetPlatformName: dto.target_platform_name,
+    targetPath: dto.target_path,
+    sourcePath: dto.source_path,
+    action: dto.action,
+    reason: dto.reason,
+    supported: dto.supported,
+    existingHash: dto.existing_hash ?? undefined,
+    sourceHash: dto.source_hash,
+  };
+}
+
+export function mapBatchSyncResultDto(dto: BatchSyncResultDto): import('../types').BatchSyncResult {
+  return {
+    operationId: dto.operation_id,
+    strategy: dto.strategy,
+    totalItems: dto.total_items,
+    successCount: dto.success_count,
+    skippedCount: dto.skipped_count,
+    failedCount: dto.failed_count,
+    items: (dto.items ?? []).map(mapBatchSyncItemResultDto),
+    message: dto.message,
+  };
+}
+
+export function mapBatchSyncItemResultDto(dto: BatchSyncItemResultDto): import('../types').BatchSyncItemResult {
+  return {
+    assetId: dto.asset_id,
+    assetName: dto.asset_name,
+    targetPlatform: dto.target_platform,
+    targetPath: dto.target_path,
+    status: dto.status,
+    message: dto.message,
+    backupId: dto.backup_id ?? undefined,
+  };
+}
+
+export function mapBatchSyncRequest(input: import('../types').BatchSyncRequest): BatchSyncRequestDto {
+  return {
+    strategy: input.strategy,
+    source_platform_id: input.sourcePlatformId ?? null,
+    items: input.items.map(mapSkillSyncItem),
+  };
+}
+
+export function mapSkillSyncItem(input: import('../types').SkillSyncItem): SkillSyncItemDto {
+  return {
+    asset_id: input.assetId,
+    asset_name: input.assetName,
+    source_path: input.sourcePath,
+    target_platform: input.targetPlatform,
+    target_path: input.targetPath,
+    action: input.action,
+    existing_hash: input.existingHash ?? null,
+    source_hash: input.sourceHash,
+  };
+}

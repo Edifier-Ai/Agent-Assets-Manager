@@ -213,6 +213,66 @@ export interface SaveSettingsInput {
   trashLocation: string;
 }
 
+export interface BatchSyncItemPreview {
+  assetId: string;
+  assetName: string;
+  targetPlatform: string;
+  targetPlatformName: string;
+  targetPath: string;
+  sourcePath: string;
+  action: string;
+  reason: string;
+  supported: boolean;
+  existingHash?: string;
+  sourceHash: string;
+}
+
+export interface BatchSyncPreview {
+  strategy: string;
+  totalItems: number;
+  items: BatchSyncItemPreview[];
+  hasConflicts: boolean;
+  summary: string;
+}
+
+export interface BatchSyncItemResult {
+  assetId: string;
+  assetName: string;
+  targetPlatform: string;
+  targetPath: string;
+  status: string;
+  message: string;
+  backupId?: string;
+}
+
+export interface BatchSyncResult {
+  operationId: string;
+  strategy: string;
+  totalItems: number;
+  successCount: number;
+  skippedCount: number;
+  failedCount: number;
+  items: BatchSyncItemResult[];
+  message: string;
+}
+
+export interface SkillSyncItem {
+  assetId: string;
+  assetName: string;
+  sourcePath: string;
+  targetPlatform: string;
+  targetPath: string;
+  action: string;
+  existingHash?: string;
+  sourceHash: string;
+}
+
+export interface BatchSyncRequest {
+  strategy: string;
+  sourcePlatformId?: string;
+  items: SkillSyncItem[];
+}
+
 export interface ScanAssetsInput {
   scanRoots?: string[];
 }

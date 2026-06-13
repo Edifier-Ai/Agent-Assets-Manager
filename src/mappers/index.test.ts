@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapModelProfileDto, mapPlatformDto, mapSaveSettingsInput, mapScanRunDto, mapSettingsDto } from './index';
+import { mapBatchSyncRequest, mapModelProfileDto, mapPlatformDto, mapSaveSettingsInput, mapScanRunDto, mapSettingsDto } from './index';
 
 describe('platform DTO mapping', () => {
   it('maps snake_case platform fields into camelCase UI fields', () => {
@@ -111,5 +111,32 @@ describe('model profile DTO mapping', () => {
     expect(mapped.modelId).toBe('gpt-5.1-codex');
     expect(mapped.baseUrl).toBe('https://api.openai.com/v1');
     expect(mapped.envKeyNames).toEqual(['OPENAI_API_KEY']);
+  });
+});
+
+describe('batch sync DTO mapping', () => {
+  it('keeps the selected source platform and item actions in the Tauri request', () => {
+    const mapped = mapBatchSyncRequest({
+      strategy: 'sync-from-source',
+      sourcePlatformId: 'codex',
+      items: [
+        {
+          assetId: 'asset-review',
+          assetName: 'review',
+          sourcePath: '~/.codex/skills/review',
+          targetPlatform: 'cursor',
+          targetPath: '~/.cursor/skills-cursor/review',
+          action: 'install',
+          sourceHash: 'hash-codex',
+        },
+      ],
+    });
+
+    expect(mapped.source_platform_id).toBe('codex');
+    expect(mapped.items[0]).toMatchObject({
+      asset_id: 'asset-review',
+      target_platform: 'cursor',
+      action: 'install',
+    });
   });
 });

@@ -282,6 +282,67 @@ pub fn execute_operation(
     }
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct PreviewSkillSyncRequest {
+    pub asset_ids: Vec<String>,
+    pub strategy: String,
+    pub source_platform_id: Option<String>,
+}
+
+#[tauri::command]
+pub fn preview_skill_sync_plan(
+    request: PreviewSkillSyncRequest,
+) -> ApiResponse<operations::BatchSyncPreview> {
+    let conn = match get_db_connection() {
+        Ok(c) => c,
+        Err(e) => return ApiResponse::err(e.to_string()),
+    };
+
+    let all_assets = match db::get_all_assets(&conn) {
+        Ok(a) => a,
+        Err(e) => return ApiResponse::err(e.to_string()),
+    };
+
+    let selected_assets: Vec<db::Asset> = all_assets
+        .into_iter()
+        .filter(|a| request.asset_ids.contains(&a.id))
+        .collect();
+
+    let all_platforms = match db::get_all_platforms(&conn) {
+        Ok(p) => p,
+        Err(e) => return ApiResponse::err(e.to_string()),
+    };
+
+    match operations::preview_skill_sync_plan(
+        &selected_assets,
+        &all_platforms,
+        &request.strategy,
+        request.source_platform_id.as_deref(),
+    ) {
+        Ok(preview) => ApiResponse::ok(preview),
+        Err(e) => ApiResponse::err(e),
+    }
+}
+
+#[tauri::command]
+pub fn execute_skill_sync_plan(
+    request: operations::BatchSyncRequest,
+    cache: tauri::State<'_, crate::platform::PlatformCache>,
+) -> ApiResponse<operations::BatchSyncResult> {
+    let conn = match get_db_connection() {
+        Ok(c) => c,
+        Err(e) => return ApiResponse::err(e.to_string()),
+    };
+
+    match operations::execute_skill_sync_plan(&conn, request) {
+        Ok(result) => {
+            cache.invalidate();
+            ApiResponse::ok(result)
+        }
+        Err(e) => ApiResponse::err(e),
+    }
+}
+
 #[tauri::command]
 pub fn get_settings() -> ApiResponse<db::AppSettings> {
     let conn = match get_db_connection() {

@@ -7,11 +7,13 @@ import AssetTableView from '../../components/AssetTableView';
 import AssetTableSkeleton from '../../components/AssetTableSkeleton';
 import AssetDetailPanel from '../../components/AssetDetailPanel';
 import AssetToolbar from '../../components/AssetToolbar';
+import SelectionBatchBar from '../../components/SelectionBatchBar';
 import PreviewModal from '../../components/PreviewModal';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import ProgressOverlay from '../../components/ProgressOverlay';
 import { useToast } from '../../components/Toast';
 import { useAssetOperations } from '../../hooks/useAssetOperations';
+import { useSkillSelection } from '../../hooks/useSkillSelection';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { matchesAssetFilter, groupAssetsByType, assetMatchesSearch } from './logic';
 import { platformTargets } from './constants';
@@ -31,6 +33,7 @@ export default function AssetsPage({ assets, platforms = [], initialFilter = 'al
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [query, setQuery] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'cards'>('cards');
+  const [sourcePlatformId, setSourcePlatformId] = useState<string | undefined>(undefined);
   const { showToast } = useToast();
   const narrow = useMediaQuery('(max-width: 900px)');
 
@@ -59,9 +62,23 @@ export default function AssetsPage({ assets, platforms = [], initialFilter = 'al
     return activePlatforms.length > 0 ? activePlatforms : platformTargets;
   }, [platforms]);
 
+  useEffect(() => {
+    if (availablePlatformTargets.length === 0) {
+      setSourcePlatformId(undefined);
+      return;
+    }
+    setSourcePlatformId((current) => (
+      current && availablePlatformTargets.some((platform) => platform.id === current)
+        ? current
+        : availablePlatformTargets[0].id
+    ));
+  }, [availablePlatformTargets]);
+
   const detailAsset = selectedAsset && filteredAssets.some((asset) => asset.id === selectedAsset.id)
     ? selectedAsset
-    : filteredAssets[0] ?? null;
+    : narrow
+      ? null
+      : filteredAssets[0] ?? null;
 
   const {
     preview,
@@ -74,7 +91,31 @@ export default function AssetsPage({ assets, platforms = [], initialFilter = 'al
     clearPreview,
     confirmDestructive,
     cancelDestructive,
+    handleBatchInstall,
   } = useAssetOperations({ availablePlatformTargets, showToast, onRefresh });
+
+  const {
+    isSelectionMode,
+    selectedIds,
+    selectedSkills,
+    selectCount,
+    totalSkillCount,
+    allSelected,
+    toggleSelectionMode,
+    exitSelectionMode,
+    toggleSelect,
+    selectAll,
+    deselectAll,
+    isSelected,
+  } = useSkillSelection(filteredAssets);
+
+  const handleBatchAction = (action: import('../../components/SelectionBatchBar').BatchAction) => {
+    if (action === 'install-all') {
+      handleBatchInstall(selectedSkills, 'install-all');
+    } else if (action === 'sync-from-source') {
+      handleBatchInstall(selectedSkills, 'sync-from-source', sourcePlatformId);
+    }
+  };
 
   return (
     <div className="flex h-full min-w-0">
@@ -87,7 +128,28 @@ export default function AssetsPage({ assets, platforms = [], initialFilter = 'al
           onViewModeChange={setViewMode}
           activeFilter={activeFilter}
           onFilterChange={setActiveFilter}
+          isSelectionMode={isSelectionMode}
+          onToggleSelectionMode={toggleSelectionMode}
+          selectionCount={selectCount}
+          selectionTotal={totalSkillCount}
         />
+
+        {isSelectionMode && (
+          <SelectionBatchBar
+            selectedSkills={selectedSkills}
+            selectCount={selectCount}
+            totalSkillCount={totalSkillCount}
+            allSelected={allSelected}
+            availablePlatformTargets={availablePlatformTargets}
+            sourcePlatformId={sourcePlatformId}
+            onSourcePlatformChange={setSourcePlatformId}
+            onSelectAll={selectAll}
+            onDeselectAll={deselectAll}
+            onExitSelectionMode={exitSelectionMode}
+            onBatchAction={handleBatchAction}
+            busy={!!busyKey}
+          />
+        )}
 
         <div className="flex-1 overflow-y-auto px-5 py-5">
           {initialLoading ? (
@@ -112,7 +174,10 @@ export default function AssetsPage({ assets, platforms = [], initialFilter = 'al
                         asset={asset}
                         index={index}
                         isSelected={detailAsset?.id === asset.id}
+                        isSelectionMode={isSelectionMode}
+                        isChecked={isSelected(asset.id)}
                         onSelect={setSelectedAsset}
+                        onToggleCheck={toggleSelect}
                         onInstallClick={handleInstallClick}
                         onShowPreview={showPreview}
                         busyKey={busyKey}
@@ -127,7 +192,10 @@ export default function AssetsPage({ assets, platforms = [], initialFilter = 'al
             <AssetTableView
               assets={filteredAssets}
               detailAssetId={detailAsset?.id ?? null}
+              isSelectionMode={isSelectionMode}
+              checkedIds={selectedIds}
               onSelectAsset={setSelectedAsset}
+              onToggleCheck={toggleSelect}
               onInstallClick={handleInstallClick}
               onShowPreview={showPreview}
               busyKey={busyKey}

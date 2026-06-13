@@ -48,6 +48,22 @@ export const fallbackPlatforms: Platform[] = [
     safeActions: ['scan', 'preview'],
     previewRequiredActions: ['delete', 'move'],
   },
+  {
+    id: 'cursor',
+    name: 'Cursor',
+    kind: 'cursor',
+    cliPath: '~/.cursor',
+    version: 'dev fallback',
+    configRoots: ['~/.cursor'],
+    writable: 'partial',
+    detectedAt: '2026-06-13T00:00:00Z',
+    status: 'active',
+    assetCount: 0,
+    warningCount: 0,
+    icon: 'cursor',
+    safeActions: ['scan', 'preview'],
+    previewRequiredActions: ['install'],
+  },
 ];
 
 export const fallbackAssets: Asset[] = [

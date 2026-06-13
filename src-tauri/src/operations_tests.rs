@@ -1,5 +1,44 @@
 use std::fs;
 
+fn test_platform(id: &str, name: &str, root: &std::path::Path) -> crate::db::Platform {
+    crate::db::Platform {
+        id: id.to_string(),
+        name: name.to_string(),
+        kind: id.to_string(),
+        cli_path: None,
+        version: None,
+        config_roots: vec![root.to_string_lossy().to_string()],
+        writable: "partial".to_string(),
+        detected_at: "2026-06-13T10:00:00Z".to_string(),
+        status: "active".to_string(),
+        asset_count: 0,
+        warning_count: 0,
+    }
+}
+
+fn skill_installation(
+    asset_id: &str,
+    platform_id: &str,
+    platform_name: &str,
+    path: &std::path::Path,
+    hash: &str,
+) -> crate::db::Installation {
+    crate::db::Installation {
+        id: format!("inst-{asset_id}-{platform_id}"),
+        asset_id: asset_id.to_string(),
+        platform_id: platform_id.to_string(),
+        platform_name: platform_name.to_string(),
+        path: path.to_string_lossy().to_string(),
+        scope: "user".to_string(),
+        enabled: true,
+        official: false,
+        project_local: false,
+        binding_type: "skill".to_string(),
+        content_hash: Some(hash.to_string()),
+        status: "enabled".to_string(),
+    }
+}
+
 #[test]
 fn preview_delete_rejects_protected_assets() {
     let preview =
@@ -310,6 +349,177 @@ fn execute_install_asset_copies_source_and_records_installation() {
         .unwrap();
     assert_eq!(operation_row.0, "install-asset");
     assert_eq!(operation_row.1, "completed");
+
+    fs::remove_dir_all(&test_root).unwrap();
+}
+
+#[test]
+fn preview_skill_sync_plan_uses_selected_source_platform_and_adapter_target_paths() {
+    let test_root = std::env::temp_dir().join(format!(
+        "agent-assets-manager-sync-preview-{}",
+        chrono::Utc::now().timestamp_nanos_opt().unwrap()
+    ));
+    fs::create_dir_all(&test_root).unwrap();
+
+    let codex_skill_file = test_root.join("codex").join("skills").join("review").join("SKILL.md");
+    let kimi_skill_file = test_root.join("kimi").join("skills").join("review").join("SKILL.md");
+    fs::create_dir_all(codex_skill_file.parent().unwrap()).unwrap();
+    fs::create_dir_all(kimi_skill_file.parent().unwrap()).unwrap();
+    fs::write(&codex_skill_file, "# Codex Review\n").unwrap();
+    fs::write(&kimi_skill_file, "# Kimi Review\n").unwrap();
+
+    let asset = crate::db::Asset {
+        id: "asset-review".to_string(),
+        asset_type: "Skill".to_string(),
+        name: "review".to_string(),
+        description: Some("review skill".to_string()),
+        author: Some("Local".to_string()),
+        version: Some("0.1.0".to_string()),
+        source: "test".to_string(),
+        canonical_hash: Some("hash-codex".to_string()),
+        directory_hash: Some("dir-hash-codex".to_string()),
+        risk_level: "low".to_string(),
+        status: "installed,user-installed".to_string(),
+        created_at: "2026-06-13T10:00:00Z".to_string(),
+        updated_at: "2026-06-13T10:00:00Z".to_string(),
+        installations: vec![
+            skill_installation("asset-review", "kimi", "Kimi", &kimi_skill_file, "hash-kimi"),
+            skill_installation("asset-review", "codex", "Codex", &codex_skill_file, "hash-codex"),
+        ],
+    };
+
+    let platforms = vec![
+        test_platform("codex", "Codex", &test_root.join("codex")),
+        test_platform("cursor", "Cursor", &test_root.join("cursor")),
+        test_platform("kimi", "Kimi", &test_root.join("kimi")),
+    ];
+
+    let preview = crate::operations::preview_skill_sync_plan(
+        &[asset],
+        &platforms,
+        "sync-from-source",
+        Some("codex"),
+    )
+    .unwrap();
+
+    let cursor_item = preview
+        .items
+        .iter()
+        .find(|item| item.target_platform == "cursor")
+        .unwrap();
+    assert_eq!(cursor_item.action, "install");
+    assert_eq!(
+        cursor_item.source_path,
+        codex_skill_file.parent().unwrap().to_string_lossy()
+    );
+    assert_eq!(
+        cursor_item.target_path,
+        test_root
+            .join("cursor")
+            .join("skills-cursor")
+            .join("review")
+            .to_string_lossy()
+    );
+
+    let codex_item = preview
+        .items
+        .iter()
+        .find(|item| item.target_platform == "codex")
+        .unwrap();
+    assert_eq!(codex_item.action, "skip");
+
+    fs::remove_dir_all(&test_root).unwrap();
+}
+
+#[test]
+fn execute_skill_sync_plan_copies_skill_directory_and_skips_conflicts() {
+    let test_root = std::env::temp_dir().join(format!(
+        "agent-assets-manager-sync-execute-{}",
+        chrono::Utc::now().timestamp_nanos_opt().unwrap()
+    ));
+    fs::create_dir_all(&test_root).unwrap();
+
+    let db_path = test_root.join("data.db");
+    crate::db::init_db(&db_path).unwrap();
+    let conn = rusqlite::Connection::open(&db_path).unwrap();
+    crate::db::insert_platform(
+        &conn,
+        &test_platform("cursor", "Cursor", &test_root.join("cursor")),
+    )
+    .unwrap();
+    crate::db::insert_platform(
+        &conn,
+        &test_platform("kimi", "Kimi", &test_root.join("kimi")),
+    )
+    .unwrap();
+
+    let source_dir = test_root.join("codex").join("skills").join("review");
+    let target_dir = test_root.join("cursor").join("skills-cursor").join("review");
+    let conflict_dir = test_root.join("kimi").join("skills").join("review");
+    fs::create_dir_all(&source_dir).unwrap();
+    fs::create_dir_all(&conflict_dir).unwrap();
+    fs::write(source_dir.join("SKILL.md"), "# Codex Review\n").unwrap();
+    fs::write(source_dir.join("notes.md"), "extra context\n").unwrap();
+    fs::write(conflict_dir.join("SKILL.md"), "# Kimi Review\n").unwrap();
+
+    crate::db::insert_asset(
+        &conn,
+        &crate::db::Asset {
+            id: "asset-review".to_string(),
+            asset_type: "Skill".to_string(),
+            name: "review".to_string(),
+            description: Some("review skill".to_string()),
+            author: Some("Local".to_string()),
+            version: Some("0.1.0".to_string()),
+            source: "test".to_string(),
+            canonical_hash: Some("hash-codex".to_string()),
+            directory_hash: Some("dir-hash-codex".to_string()),
+            risk_level: "low".to_string(),
+            status: "installed,user-installed".to_string(),
+            created_at: "2026-06-13T10:00:00Z".to_string(),
+            updated_at: "2026-06-13T10:00:00Z".to_string(),
+            installations: Vec::new(),
+        },
+    )
+    .unwrap();
+
+    let result = crate::operations::execute_skill_sync_plan(
+        &conn,
+        crate::operations::BatchSyncRequest {
+            strategy: "sync-from-source".to_string(),
+            source_platform_id: Some("codex".to_string()),
+            items: vec![
+                crate::operations::SkillSyncItem {
+                    asset_id: "asset-review".to_string(),
+                    asset_name: "review".to_string(),
+                    source_path: source_dir.to_string_lossy().to_string(),
+                    target_platform: "cursor".to_string(),
+                    target_path: target_dir.to_string_lossy().to_string(),
+                    action: "install".to_string(),
+                    existing_hash: None,
+                    source_hash: "hash-codex".to_string(),
+                },
+                crate::operations::SkillSyncItem {
+                    asset_id: "asset-review".to_string(),
+                    asset_name: "review".to_string(),
+                    source_path: source_dir.to_string_lossy().to_string(),
+                    target_platform: "kimi".to_string(),
+                    target_path: conflict_dir.to_string_lossy().to_string(),
+                    action: "conflict".to_string(),
+                    existing_hash: Some("hash-kimi".to_string()),
+                    source_hash: "hash-codex".to_string(),
+                },
+            ],
+        },
+    )
+    .unwrap();
+
+    assert_eq!(result.success_count, 1);
+    assert_eq!(result.skipped_count, 1);
+    assert_eq!(result.failed_count, 0);
+    assert_eq!(fs::read_to_string(target_dir.join("SKILL.md")).unwrap(), "# Codex Review\n");
+    assert_eq!(fs::read_to_string(target_dir.join("notes.md")).unwrap(), "extra context\n");
+    assert_eq!(fs::read_to_string(conflict_dir.join("SKILL.md")).unwrap(), "# Kimi Review\n");
 
     fs::remove_dir_all(&test_root).unwrap();
 }

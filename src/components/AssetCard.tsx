@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion';
-import { AlertTriangle, Ban, Copy, FolderOpen, MoreHorizontal, Trash2 } from 'lucide-react';
+import { AlertTriangle, Ban, CheckSquare, Copy, FolderOpen, MoreHorizontal, Square, Trash2 } from 'lucide-react';
 import Badge from './Badge';
 import DropdownMenu from './DropdownMenu';
 import PlatformInstallButtons from './PlatformInstallButtons';
+import PlatformConsistencyMatrix from './PlatformConsistencyMatrix';
 import Tooltip from './Tooltip';
 import { deriveSource, getAssetTypeLabel, getFileName } from '../utils';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
@@ -15,7 +16,10 @@ interface AssetCardProps {
   asset: Asset;
   index: number;
   isSelected: boolean;
+  isSelectionMode: boolean;
+  isChecked: boolean;
   onSelect: (asset: Asset) => void;
+  onToggleCheck: (asset: Asset) => void;
   onInstallClick: (asset: Asset, target?: PlatformTarget) => void;
   onShowPreview: (asset: Asset, operation: string) => void;
   busyKey: string | null;
@@ -28,7 +32,10 @@ export default function AssetCard({
   asset,
   index,
   isSelected,
+  isSelectionMode,
+  isChecked,
   onSelect,
+  onToggleCheck,
   onInstallClick,
   onShowPreview,
   busyKey,
@@ -75,16 +82,40 @@ export default function AssetCard({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.025 }}
-      onClick={() => onSelect(asset)}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(asset); } }}
+      onClick={() => {
+        if (isSelectionMode && asset.type === 'Skill') {
+          onToggleCheck(asset);
+        } else {
+          onSelect(asset);
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (isSelectionMode && asset.type === 'Skill') {
+            onToggleCheck(asset);
+          } else {
+            onSelect(asset);
+          }
+        }
+      }}
       tabIndex={0}
       className={`min-w-0 cursor-pointer rounded-lg border bg-white p-4 transition-all hover:border-gray-300 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 ${
         isSelected ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-100'
       }`}
     >
-      {/* Header: type + source + warning indicator + menu */}
+      {/* Header: type + source + warning indicator + menu + checkbox */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {isSelectionMode && asset.type === 'Skill' && (
+            <span className="flex items-center justify-center rounded p-0.5 text-blue-600">
+              {isChecked ? (
+                <CheckSquare className="h-4 w-4" />
+              ) : (
+                <Square className="h-4 w-4 text-gray-400" />
+              )}
+            </span>
+          )}
           <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 whitespace-nowrap">
             {getAssetTypeLabel(asset.type)}
           </span>
@@ -114,6 +145,17 @@ export default function AssetCard({
       <p className="mt-1.5 line-clamp-2 min-h-[2.5rem] text-xs leading-5 text-gray-500">
         {asset.description || '暂无描述'}
       </p>
+
+      {/* Platform consistency matrix - only for Skills */}
+      {asset.type === 'Skill' && (
+        <div className="mt-2">
+          <PlatformConsistencyMatrix
+            asset={asset}
+            availablePlatformTargets={availablePlatformTargets}
+            compact
+          />
+        </div>
+      )}
 
       {/* Meta row: version + scope */}
       {asset.version && (

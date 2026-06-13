@@ -703,3 +703,400 @@ fn upsert_model_binding_from_profile(
     )
     .map_err(|e| e.to_string())
 }
+
+// ── Batch Skill Sync Operations ───────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillSyncItem {
+    pub asset_id: String,
+    pub asset_name: String,
+    pub source_path: String,
+    pub target_platform: String,
+    pub target_path: String,
+    pub action: String,
+    pub existing_hash: Option<String>,
+    pub source_hash: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchSyncPreview {
+    pub strategy: String,
+    pub total_items: usize,
+    pub items: Vec<SkillSyncItemPreview>,
+    pub has_conflicts: bool,
+    pub summary: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillSyncItemPreview {
+    pub asset_id: String,
+    pub asset_name: String,
+    pub target_platform: String,
+    pub target_platform_name: String,
+    pub target_path: String,
+    pub source_path: String,
+    pub action: String, // "install" | "skip" | "conflict"
+    pub reason: String,
+    pub supported: bool,
+    pub existing_hash: Option<String>,
+    pub source_hash: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchSyncRequest {
+    pub strategy: String,
+    pub source_platform_id: Option<String>,
+    pub items: Vec<SkillSyncItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchSyncResult {
+    pub operation_id: String,
+    pub strategy: String,
+    pub total_items: usize,
+    pub success_count: usize,
+    pub skipped_count: usize,
+    pub failed_count: usize,
+    pub items: Vec<BatchSyncItemResult>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchSyncItemResult {
+    pub asset_id: String,
+    pub asset_name: String,
+    pub target_platform: String,
+    pub target_path: String,
+    pub status: String, // "success" | "skipped" | "failed"
+    pub message: String,
+    pub backup_id: Option<String>,
+}
+
+pub fn preview_skill_sync_plan(
+    assets: &[db::Asset],
+    platforms: &[db::Platform],
+    strategy: &str,
+    source_platform_id: Option<&str>,
+) -> Result<BatchSyncPreview, String> {
+    let mut items: Vec<SkillSyncItemPreview> = Vec::new();
+    let mut has_conflicts = false;
+
+    for asset in assets {
+        if asset.asset_type != "Skill" {
+            continue;
+        }
+
+        let source_installation = select_source_installation(asset, source_platform_id);
+        let source_installation = match source_installation {
+            Some(installation) => installation,
+            None => continue,
+        };
+        let source_path = source_path_for_skill(&source_installation.path);
+        let source_hash = source_installation
+            .content_hash
+            .clone()
+            .or_else(|| asset.canonical_hash.clone())
+            .or_else(|| asset.directory_hash.clone())
+            .unwrap_or_default();
+
+        for platform in platforms.iter().filter(|platform| platform.status == "active") {
+            if platform.writable == "readonly" {
+                items.push(SkillSyncItemPreview {
+                    asset_id: asset.id.clone(),
+                    asset_name: asset.name.clone(),
+                    target_platform: platform.id.clone(),
+                    target_platform_name: platform.name.clone(),
+                    target_path: String::new(),
+                    source_path: source_path.clone(),
+                    action: "skip".to_string(),
+                    reason: format!("{} 当前只读", platform.name),
+                    supported: false,
+                    existing_hash: None,
+                    source_hash: source_hash.clone(),
+                });
+                continue;
+            }
+
+            let existing = asset.installations.iter().find(|inst| {
+                normalize_platform_id(&inst.platform_id) == normalize_platform_id(&platform.id)
+                    || normalize_platform_id(&inst.platform_name) == normalize_platform_id(&platform.id)
+            });
+
+            let target_path = if let Some(inst) = existing {
+                inst.path.clone()
+            } else {
+                match target_skill_path(platform, &asset.name) {
+                    Some(path) => path,
+                    None => {
+                        items.push(SkillSyncItemPreview {
+                            asset_id: asset.id.clone(),
+                            asset_name: asset.name.clone(),
+                            target_platform: platform.id.clone(),
+                            target_platform_name: platform.name.clone(),
+                            target_path: String::new(),
+                            source_path: source_path.clone(),
+                            action: "skip".to_string(),
+                            reason: format!("{} 缺少可写入的 Skills 目录", platform.name),
+                            supported: false,
+                            existing_hash: None,
+                            source_hash: source_hash.clone(),
+                        });
+                        continue;
+                    }
+                }
+            };
+
+            let existing_hash = existing.and_then(|inst| inst.content_hash.clone());
+
+            let action = if existing.is_some() {
+                if normalize_platform_id(&source_installation.platform_id)
+                    == normalize_platform_id(&platform.id)
+                    || existing_hash.as_ref() == Some(&source_hash)
+                    || source_hash.is_empty()
+                {
+                    "skip".to_string()
+                } else {
+                    has_conflicts = true;
+                    "conflict".to_string()
+                }
+            } else {
+                "install".to_string()
+            };
+
+            let reason = if action == "skip" && existing.is_some() {
+                "已安装且内容一致".to_string()
+            } else if action == "conflict" {
+                "目标路径已存在，内容不一致".to_string()
+            } else {
+                "将安装到新平台".to_string()
+            };
+
+            items.push(SkillSyncItemPreview {
+                asset_id: asset.id.clone(),
+                asset_name: asset.name.clone(),
+                target_platform: platform.id.clone(),
+                target_platform_name: platform.name.clone(),
+                target_path,
+                source_path: source_path.clone(),
+                action,
+                reason,
+                supported: existing.is_none(),
+                existing_hash,
+                source_hash: source_hash.clone(),
+            });
+        }
+    }
+
+    let install_count = items.iter().filter(|i| i.action == "install").count();
+    let skip_count = items.iter().filter(|i| i.action == "skip").count();
+    let conflict_count = items.iter().filter(|i| i.action == "conflict").count();
+
+    let summary = format!(
+        "共 {} 项：{} 安装、{} 跳过、{} 冲突",
+        items.len(),
+        install_count,
+        skip_count,
+        conflict_count
+    );
+
+    Ok(BatchSyncPreview {
+        strategy: strategy.to_string(),
+        total_items: items.len(),
+        items,
+        has_conflicts,
+        summary,
+    })
+}
+
+pub fn execute_skill_sync_plan(
+    conn: &Connection,
+    request: BatchSyncRequest,
+) -> Result<BatchSyncResult, String> {
+    let operation_id = format!(
+        "batch-sync-{}-{}",
+        request.strategy,
+        Utc::now().timestamp_nanos_opt().unwrap_or_default()
+    );
+
+    let mut results = Vec::new();
+    let mut success_count = 0;
+    let mut skipped_count = 0;
+    let mut failed_count = 0;
+
+    for item in &request.items {
+        if item.action != "install" {
+            skipped_count += 1;
+            results.push(BatchSyncItemResult {
+                asset_id: item.asset_id.clone(),
+                asset_name: item.asset_name.clone(),
+                target_platform: item.target_platform.clone(),
+                target_path: item.target_path.clone(),
+                status: "skipped".to_string(),
+                message: if item.action == "conflict" {
+                    "目标平台已有不同内容，已跳过".to_string()
+                } else {
+                    "同步计划要求跳过".to_string()
+                },
+                backup_id: None,
+            });
+            continue;
+        }
+
+        let preview = PreviewOperationRequest {
+            operation_type: "install-asset".to_string(),
+            target_id: Some(item.asset_id.clone()),
+            target_name: item.asset_name.clone(),
+            target_type: "Skill".to_string(),
+            target_path: item.target_path.clone(),
+            source_path: Some(item.source_path.clone()),
+            official: false,
+            risk_level: Some("low".to_string()),
+            platform_id: Some(item.target_platform.clone()),
+        };
+
+        let preview_result = preview_operation(preview.clone());
+        match preview_result {
+            Ok(p) if p.supported => {
+                let exec_request = ExecuteOperationRequest { preview: preview.clone() };
+                match execute_operation(conn, exec_request) {
+                    Ok(result) => {
+                        success_count += 1;
+                        results.push(BatchSyncItemResult {
+                            asset_id: item.asset_id.clone(),
+                            asset_name: item.asset_name.clone(),
+                            target_platform: item.target_platform.clone(),
+                            target_path: item.target_path.clone(),
+                            status: "success".to_string(),
+                            message: result.message,
+                            backup_id: result.backup_id,
+                        });
+                    }
+                    Err(e) => {
+                        failed_count += 1;
+                        results.push(BatchSyncItemResult {
+                            asset_id: item.asset_id.clone(),
+                            asset_name: item.asset_name.clone(),
+                            target_platform: item.target_platform.clone(),
+                            target_path: item.target_path.clone(),
+                            status: "failed".to_string(),
+                            message: e,
+                            backup_id: None,
+                        });
+                    }
+                }
+            }
+            Ok(p) => {
+                skipped_count += 1;
+                results.push(BatchSyncItemResult {
+                    asset_id: item.asset_id.clone(),
+                    asset_name: item.asset_name.clone(),
+                    target_platform: item.target_platform.clone(),
+                    target_path: item.target_path.clone(),
+                    status: "skipped".to_string(),
+                    message: p.risks.first().cloned().unwrap_or_else(|| "操作不支持".to_string()),
+                    backup_id: None,
+                });
+            }
+            Err(e) => {
+                failed_count += 1;
+                results.push(BatchSyncItemResult {
+                    asset_id: item.asset_id.clone(),
+                    asset_name: item.asset_name.clone(),
+                    target_platform: item.target_platform.clone(),
+                    target_path: item.target_path.clone(),
+                    status: "failed".to_string(),
+                    message: e,
+                    backup_id: None,
+                });
+            }
+        }
+    }
+
+    let log = db::OperationLog {
+        id: operation_id.clone(),
+        operation_type: format!("batch-sync-{}", request.strategy),
+        status: if failed_count == 0 { "completed".to_string() } else { "partial".to_string() },
+        target_type: "Skill".to_string(),
+        target_id: None,
+        target_path: None,
+        preview_json: Some(serde_json::to_string(&request).unwrap_or_default()),
+        result_json: Some(serde_json::to_string(&results).unwrap_or_default()),
+        backup_id: None,
+        created_at: Utc::now().to_rfc3339(),
+        completed_at: Some(Utc::now().to_rfc3339()),
+    };
+    let _ = db::insert_operation(conn, &log);
+
+    let message = format!(
+        "批量同步完成：{} 成功、{} 跳过、{} 失败",
+        success_count, skipped_count, failed_count
+    );
+
+    Ok(BatchSyncResult {
+        operation_id,
+        strategy: request.strategy,
+        total_items: results.len(),
+        success_count,
+        skipped_count,
+        failed_count,
+        items: results,
+        message,
+    })
+}
+
+fn normalize_platform_id(value: &str) -> String {
+    value.to_lowercase().replace(" ", "").replace("-", "").replace("_", "")
+}
+
+fn sanitize_asset_name(name: &str) -> String {
+    name.trim()
+        .replace(|c: char| !c.is_alphanumeric() && c != '_' && c != '-' && c != '.', "-")
+        .trim_matches('-')
+        .to_string()
+}
+
+fn select_source_installation<'a>(
+    asset: &'a db::Asset,
+    source_platform_id: Option<&str>,
+) -> Option<&'a db::Installation> {
+    if let Some(source_platform_id) = source_platform_id {
+        let normalized_source = normalize_platform_id(source_platform_id);
+        return asset.installations.iter().find(|installation| {
+            normalize_platform_id(&installation.platform_id) == normalized_source
+                || normalize_platform_id(&installation.platform_name) == normalized_source
+        });
+    }
+
+    asset.installations.first()
+}
+
+fn source_path_for_skill(path: &str) -> String {
+    if path.ends_with("/SKILL.md") {
+        return path.trim_end_matches("/SKILL.md").to_string();
+    }
+    path.to_string()
+}
+
+fn target_skill_path(platform: &db::Platform, asset_name: &str) -> Option<String> {
+    let root = platform.config_roots.first()?;
+    let kind = PlatformKind::from_str(&platform.kind)
+        .or_else(|| PlatformKind::from_str(&platform.id))?;
+    let adapter = adapters::adapter_for_kind(&kind);
+    let skill_subdir = adapter
+        .asset_search_specs()
+        .into_iter()
+        .find(|spec| spec.asset_type == "Skill")
+        .map(|spec| spec.subdir)
+        .unwrap_or("skills");
+    let base = sanitize_asset_name(asset_name);
+    if base.is_empty() {
+        return None;
+    }
+
+    Some(format!(
+        "{}/{}/{}",
+        root.trim_end_matches('/'),
+        skill_subdir.trim_matches('/'),
+        base
+    ))
+}
