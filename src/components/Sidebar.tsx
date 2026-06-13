@@ -1,4 +1,4 @@
-import { Home, Box, Layers, Brain, ScanLine, Archive, History, Settings } from 'lucide-react';
+import { Home, Box, Layers, Brain, ScanLine, Archive, History, Settings, ShieldAlert } from 'lucide-react';
 import PlatformIcon from './PlatformIcon';
 import type { NavPage, ScanRun } from '../types';
 
@@ -14,6 +14,7 @@ const items: { id: NavPage; label: string; icon: React.ElementType }[] = [
   { id: 'assets', label: '资产', icon: Box },
   { id: 'platforms', label: '平台', icon: Layers },
   { id: 'models', label: '模型', icon: Brain },
+  { id: 'diagnostics', label: '问题中心', icon: ShieldAlert },
   { id: 'scan', label: '扫描', icon: ScanLine },
   { id: 'backups', label: '备份', icon: Archive },
   { id: 'operations', label: '操作历史', icon: History },

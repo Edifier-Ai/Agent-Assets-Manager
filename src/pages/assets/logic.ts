@@ -13,6 +13,14 @@ export type AssetGroup = {
   assets: Asset[];
 };
 
+export interface InstallTargetPathExplanation {
+  sourcePath: string;
+  targetRoot: string;
+  targetSubdir: string;
+  targetPath: string;
+  reason: string;
+}
+
 export function matchesAssetFilter(asset: Asset, activeFilter: AssetFilterId): boolean {
   if (activeFilter === 'all') return true;
   if (activeFilter === 'needs-review') return asset.status.includes('needs-review');
@@ -97,25 +105,54 @@ function extensionForAsset(asset: Asset, sourcePath: string): string {
   return '.md';
 }
 
-function getInstallTargetPath(asset: Asset, platform: PlatformTarget): string | null {
+function getInstallTargetParts(asset: Asset, platform: PlatformTarget): {
+  sourcePath: string;
+  root: string;
+  subdir: string;
+  targetPath: string;
+  platformSpecific: boolean;
+} | null {
   const root = platform.configRoots?.[0];
   if (!root) return null;
 
   const sourcePath = getSourcePathForInstall(asset);
   if (!sourcePath) return null;
 
-  const subdir = assetTypeSubdirByPlatform[platform.id]?.[asset.type] ?? defaultAssetTypeSubdirs[asset.type];
+  const platformSubdirs = assetTypeSubdirByPlatform[platform.id];
+  const platformSpecific = platformSubdirs?.[asset.type] !== undefined;
+  const subdir = platformSubdirs?.[asset.type] ?? defaultAssetTypeSubdirs[asset.type];
   if (subdir === undefined) return null;
 
   const base = sanitizeAssetName(asset.name);
   const rootPath = root.replace(/\/+$/g, '');
   const parent = subdir ? `${rootPath}/${subdir}` : rootPath;
+  const targetPath = asset.type === 'Skill' || asset.type === 'Agent'
+    ? `${parent}/${base}`
+    : `${parent}/${base}${extensionForAsset(asset, sourcePath)}`;
 
-  if (asset.type === 'Skill' || asset.type === 'Agent') {
-    return `${parent}/${base}`;
-  }
+  return { sourcePath, root: rootPath, subdir, targetPath, platformSpecific };
+}
 
-  return `${parent}/${base}${extensionForAsset(asset, sourcePath)}`;
+function getInstallTargetPath(asset: Asset, platform: PlatformTarget): string | null {
+  return getInstallTargetParts(asset, platform)?.targetPath ?? null;
+}
+
+export function explainInstallTargetPath(asset: Asset, platform: PlatformTarget): InstallTargetPathExplanation | null {
+  const parts = getInstallTargetParts(asset, platform);
+  if (!parts) return null;
+
+  const targetSubdir = parts.subdir || '平台配置根目录';
+  const reason = parts.platformSpecific
+    ? `${platform.name} 使用平台专属目录 ${targetSubdir} 存放 ${asset.type} 资产`
+    : `${platform.name} 使用默认目录 ${targetSubdir} 存放 ${asset.type} 资产`;
+
+  return {
+    sourcePath: parts.sourcePath,
+    targetRoot: parts.root,
+    targetSubdir,
+    targetPath: parts.targetPath,
+    reason,
+  };
 }
 
 export function buildInstallOperationRequest(asset: Asset, platform: PlatformTarget): OperationRequest | null {

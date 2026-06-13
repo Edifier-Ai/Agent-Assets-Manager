@@ -1,4 +1,4 @@
-export type NavPage = 'overview' | 'assets' | 'platforms' | 'models' | 'scan' | 'backups' | 'operations' | 'settings';
+export type NavPage = 'overview' | 'assets' | 'platforms' | 'models' | 'diagnostics' | 'scan' | 'backups' | 'operations' | 'settings';
 
 export type AssetType = 'Skill' | 'Agent' | 'Command' | 'MCP Server' | 'Tool' | 'Rule' | 'Memory' | 'Persona' | 'Provider Config' | 'Model Config' | 'CLI Runtime';
 

@@ -66,8 +66,8 @@ fn adapter_registry_includes_all_supported_platforms() {
     assert_eq!(
         kinds,
         vec![
-            "claude", "codex", "cursor", "gemini", "hermes", "kimi", "openclaw", "opencode",
-            "qwen", "trae"
+            "claude", "codex", "cursor", "gemini", "generic", "hermes", "kimi", "openclaw",
+            "opencode", "qwen", "trae"
         ]
     );
 }
@@ -104,6 +104,7 @@ fn scanner_can_scan_generic_cli_assets_via_adapter_specs() {
     let assets = crate::db::get_all_assets(&conn).unwrap();
     assert_eq!(assets.len(), 1);
     assert_eq!(assets[0].asset_type, "Command");
+    assert_eq!(assets[0].source, "Generic CLI");
     assert_eq!(assets[0].installations[0].platform_id, "generic");
 
     drop(conn);
@@ -140,6 +141,7 @@ fn scanner_can_scan_custom_roots_as_generic_cli_assets() {
     let assets = crate::db::get_all_assets(&conn).unwrap();
     assert_eq!(assets.len(), 1);
     assert_eq!(assets[0].asset_type, "Rule");
+    assert_eq!(assets[0].source, "Generic CLI");
     assert_eq!(assets[0].installations[0].platform_id, "generic");
 
     drop(conn);

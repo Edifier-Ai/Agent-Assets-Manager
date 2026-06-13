@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { supportsApplyPreview, getApplySupportLabel } from './ModelsPage';
-import type { Platform } from '../types';
+import { supportsApplyPreview, getApplySupportLabel, buildModelConfigMatrix } from './ModelsPage';
+import type { ModelBinding, ModelProfile, Platform } from '../types';
 
 function makePlatform(writable: Platform['writable']): Platform {
   return {
@@ -54,5 +54,76 @@ describe('getApplySupportLabel', () => {
 
   it('returns writable label when platform is writable', () => {
     expect(getApplySupportLabel(makePlatform('writable'))).toBe('支持应用预览');
+  });
+});
+
+describe('buildModelConfigMatrix', () => {
+  it('summarizes profile compatibility across detected platform bindings', () => {
+    const profiles: ModelProfile[] = [
+      {
+        id: 'profile-openai',
+        name: 'OpenAI 默认',
+        provider: 'OpenAI',
+        modelId: 'gpt-5.1',
+        baseUrl: 'https://api.openai.com/v1',
+        keyStorage: 'env',
+        envKeyNames: ['OPENAI_API_KEY'],
+        notes: '',
+      },
+    ];
+    const bindings: ModelBinding[] = [
+      {
+        id: 'binding-codex',
+        platformId: 'codex',
+        platformName: 'Codex',
+        detectedProvider: 'OpenAI',
+        detectedModelId: 'gpt-5.1',
+        detectedBaseUrl: 'https://api.openai.com/v1',
+        configPath: '~/.codex/config.json',
+        keyPresence: true,
+        keyStorage: 'env',
+        validationStatus: 'ok',
+        lastValidatedAt: '2026-06-13T00:00:00Z',
+        warnings: [],
+      },
+      {
+        id: 'binding-kimi',
+        platformId: 'kimi',
+        platformName: 'Kimi',
+        detectedProvider: 'Moonshot',
+        detectedModelId: 'kimi-k2',
+        detectedBaseUrl: 'https://api.moonshot.cn',
+        configPath: '~/.kimi-code/config.json',
+        keyPresence: false,
+        keyStorage: 'unknown',
+        validationStatus: 'warning',
+        lastValidatedAt: '2026-06-13T00:00:00Z',
+        warnings: ['缺少 API Key'],
+      },
+    ];
+
+    expect(buildModelConfigMatrix(profiles, bindings)).toEqual([
+      {
+        profileId: 'profile-openai',
+        profileName: 'OpenAI 默认',
+        matchedBindings: 1,
+        driftedBindings: 1,
+        missingKeys: 1,
+        rows: [
+          {
+            bindingId: 'binding-codex',
+            platformName: 'Codex',
+            status: 'matched',
+            summary: 'Provider、模型和 Base URL 已一致',
+          },
+          {
+            bindingId: 'binding-kimi',
+            platformName: 'Kimi',
+            status: 'drifted',
+            summary: 'Provider 不同、模型不同、Base URL 不同、缺少 API Key',
+          },
+        ],
+      },
+    ]);
   });
 });

@@ -20,6 +20,7 @@ describe('api runtime stability', () => {
   it('uses development fallback data outside a Tauri runtime', async () => {
     const api = await import('./api');
 
+    expect(api.isDevelopmentFallbackMode()).toBe(true);
     await expect(api.getPlatforms()).resolves.toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -36,6 +37,7 @@ describe('api runtime stability', () => {
     invokeMock.mockResolvedValue({ success: false, error: 'database unavailable' });
     const api = await import('./api');
 
+    expect(api.isDevelopmentFallbackMode()).toBe(false);
     await expect(api.getAssets()).rejects.toThrow('database unavailable');
   });
 });

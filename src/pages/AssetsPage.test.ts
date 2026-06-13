@@ -3,6 +3,7 @@ import type { Asset } from '../types';
 import {
   assetFilters,
   buildInstallOperationRequest,
+  explainInstallTargetPath,
   groupAssetsByType,
   matchesAssetFilter,
 } from './assets';
@@ -118,5 +119,27 @@ describe('asset install request builder', () => {
 
     expect(request?.sourcePath).toBe('~/.codex/skills/frontend-testing-debugging');
     expect(request?.targetPath).toBe('~/.cursor/skills-cursor/Skill-asset');
+  });
+
+  it('explains how the install target path was selected', () => {
+    const explanation = explainInstallTargetPath(
+      makeInstalledAsset('Skill', '~/.codex/skills/frontend-testing-debugging/SKILL.md'),
+      {
+        id: 'cursor',
+        name: 'Cursor',
+        kind: 'cursor',
+        configRoots: ['~/.cursor'],
+        writable: 'partial',
+        status: 'active',
+      },
+    );
+
+    expect(explanation).toEqual({
+      sourcePath: '~/.codex/skills/frontend-testing-debugging',
+      targetRoot: '~/.cursor',
+      targetSubdir: 'skills-cursor',
+      targetPath: '~/.cursor/skills-cursor/Skill-asset',
+      reason: 'Cursor 使用平台专属目录 skills-cursor 存放 Skill 资产',
+    });
   });
 });

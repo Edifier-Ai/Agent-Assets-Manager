@@ -2,7 +2,7 @@ import { useState } from 'react';
 import * as api from '../api';
 import type { Asset, OperationPreview, OperationRequest } from '../types';
 import type { PlatformTarget } from '../pages/assets/constants';
-import { buildInstallOperationRequest, aggregatePreviews, isInstalledOnPlatform, normalizePlatform } from '../pages/assets/logic';
+import { buildInstallOperationRequest, aggregatePreviews, explainInstallTargetPath, isInstalledOnPlatform, normalizePlatform } from '../pages/assets/logic';
 
 interface UseAssetOperationsOptions {
   availablePlatformTargets: PlatformTarget[];
@@ -108,7 +108,14 @@ export function useAssetOperations({ availablePlatformTargets, showToast, onRefr
     const actionKey = `install:${asset.id}:${requests.map((request) => request.platformId).join(',')}`;
     setBusyKey(actionKey);
     try {
-      const previews = await Promise.all(requests.map((request) => api.previewOperation(request)));
+      const previews = await Promise.all(requests.map(async (request) => {
+        const preview = await api.previewOperation(request);
+        const target = availablePlatformTargets.find((platform) => platform.id === request.platformId);
+        const explanation = target ? explainInstallTargetPath(asset, target) : null;
+        return explanation
+          ? { ...preview, risks: [...preview.risks, `路径依据：${explanation.reason}`] }
+          : preview;
+      }));
       setPreviewRequests(requests);
       setPreview(aggregatePreviews(asset.name, previews, requests));
     } catch (error) {

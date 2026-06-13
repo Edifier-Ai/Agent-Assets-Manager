@@ -589,6 +589,15 @@ fn build_asset_status(installations: &[Installation]) -> String {
     parts.join(",")
 }
 
+fn authoritative_source(metadata_source: &str, platform_name: &str) -> String {
+    let trimmed = metadata_source.trim();
+    if trimmed.is_empty() || trimmed == "unknown" {
+        platform_name.to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
 fn append_contextual_findings(findings: &mut Vec<Finding>, assets: &[Asset]) {
     for asset in assets {
         let Some(primary_installation) = asset.installations.first() else {
@@ -720,6 +729,7 @@ fn scan_skill_files(
                     existing.status = build_asset_status(&existing.installations);
                 } else {
                     let status = build_asset_status(std::slice::from_ref(&installation));
+                    let source = authoritative_source(&metadata.source, platform_name);
                     assets.push(Asset {
                         id: asset_id.clone(),
                         asset_type: "Skill".to_string(),
@@ -727,7 +737,7 @@ fn scan_skill_files(
                         description: metadata.description,
                         author: metadata.author,
                         version: metadata.version,
-                        source: metadata.source,
+                        source,
                         canonical_hash: Some(hash.clone()),
                         directory_hash: None,
                         risk_level: "low".to_string(),
@@ -780,7 +790,7 @@ fn scan_skill_files(
                         description: None,
                         author: None,
                         version: None,
-                        source: "unknown".to_string(),
+                        source: platform_name.to_string(),
                         canonical_hash: Some(hash.clone()),
                         directory_hash: None,
                         risk_level: "low".to_string(),
@@ -864,7 +874,7 @@ fn scan_markdown_files(
                     description: None,
                     author: None,
                     version: None,
-                    source: "unknown".to_string(),
+                    source: platform_name.to_string(),
                     canonical_hash: Some(hash.clone()),
                     directory_hash: None,
                     risk_level: asset_type_risk_level(&resolved_asset_type).to_string(),
@@ -947,7 +957,7 @@ fn scan_json_files(
                     description: None,
                     author: None,
                     version: None,
-                    source: "unknown".to_string(),
+                    source: platform_name.to_string(),
                     canonical_hash: Some(hash.clone()),
                     directory_hash: None,
                     risk_level: asset_type_risk_level(&resolved_asset_type).to_string(),

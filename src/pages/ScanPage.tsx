@@ -20,6 +20,29 @@ export function isScanRunComplete(run: Pick<ScanRun, 'status'>): boolean {
   return run.status === 'completed';
 }
 
+type ScanCountSnapshot = Pick<ScanRun, 'assetsFound' | 'platformsFound' | 'duplicatesFound' | 'warningsFound'>;
+
+function formatDelta(label: string, delta: number): string | null {
+  if (delta === 0) return null;
+  return `${label} ${delta > 0 ? '+' : ''}${delta}`;
+}
+
+export function buildScanChangeSummary(
+  current: ScanCountSnapshot,
+  previous?: ScanCountSnapshot,
+): string[] {
+  if (!previous) {
+    return ['首次扫描建立本机资产基线'];
+  }
+
+  return [
+    formatDelta('资产', current.assetsFound - previous.assetsFound),
+    formatDelta('平台', current.platformsFound - previous.platformsFound),
+    formatDelta('重复', current.duplicatesFound - previous.duplicatesFound),
+    formatDelta('风险提示', current.warningsFound - previous.warningsFound),
+  ].filter((item): item is string => Boolean(item));
+}
+
 function renderStatus(status: ScanRun['status']) {
   if (status === 'completed') {
     return (
@@ -117,6 +140,7 @@ export default function ScanPage({ scanRuns, settings, onRefresh }: ScanPageProp
     '~/.trae',
     '~/.trae-cn',
   ];
+  const scanChangeSummary = scanRun ? buildScanChangeSummary(scanRun, scanRuns[1]) : [];
 
   return (
     <div className="flex h-full overflow-y-auto">
@@ -196,6 +220,17 @@ export default function ScanPage({ scanRuns, settings, onRefresh }: ScanPageProp
               </div>
               </div>
             </div>
+            {scanChangeSummary.length > 0 && (
+              <div className="px-5 pb-5">
+                <div className="flex flex-wrap gap-2 rounded-xl bg-blue-50 px-3 py-2">
+                  {scanChangeSummary.map((item) => (
+                    <span key={item} className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-blue-700">
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
             {!!scanRun.steps.length && (
               <div className="px-5 pb-5 space-y-2">
                 {scanRun.steps.map((step) => (

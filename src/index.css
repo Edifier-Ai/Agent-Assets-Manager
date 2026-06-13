@@ -110,7 +110,7 @@
   }
   
   .modal-panel {
-    @apply bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden;
+    @apply bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4 overflow-hidden max-h-[85vh] overflow-y-auto;
     animation: scaleIn 0.2s ease-out;
   }
   

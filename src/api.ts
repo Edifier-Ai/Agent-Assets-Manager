@@ -66,6 +66,10 @@ export function isTauriRuntime(): boolean {
   return isTauriCoreRuntime();
 }
 
+export function isDevelopmentFallbackMode(): boolean {
+  return !isTauriRuntime();
+}
+
 async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   const resp = await invoke<ApiResponse<T>>(cmd, args);
   if (!resp.success) {

@@ -59,6 +59,7 @@ pub fn all_adapters() -> Vec<Box<dyn PlatformAdapter>> {
         Box::new(qwen::QwenAdapter::default()),
         Box::new(cursor::CursorAdapter::default()),
         Box::new(trae::TraeAdapter::default()),
+        Box::new(generic_cli::GenericCliAdapter::default()),
     ]
 }
 

@@ -9,6 +9,7 @@ import OverviewPage from './pages/OverviewPage';
 import AssetsPage from './pages/assets';
 import PlatformsPage from './pages/PlatformsPage';
 import ModelsPage from './pages/ModelsPage';
+import DiagnosticsPage from './pages/DiagnosticsPage';
 import ScanPage from './pages/ScanPage';
 import BackupsPage from './pages/BackupsPage';
 import OperationsPage from './pages/OperationsPage';
@@ -36,6 +37,7 @@ const pageComponents: Record<NavPage, ComponentType<any>> = {
   assets: AssetsPage,
   platforms: PlatformsPage,
   models: ModelsPage,
+  diagnostics: DiagnosticsPage,
   scan: ScanPage,
   backups: BackupsPage,
   operations: OperationsPage,
@@ -196,6 +198,7 @@ function AppShell() {
   }, [showToast]);
 
   const PageComponent = pageComponents[currentPage];
+  const developmentFallbackMode = api.isDevelopmentFallbackMode();
 
   const pageProps = {
     platforms,
@@ -228,6 +231,11 @@ function AppShell() {
           />
           <div className="flex-1 flex flex-col min-w-0">
             <StatusBar lastScanTime={lastScanTime} onRescan={handleRescan} loading={loading} />
+            {developmentFallbackMode && (
+              <div className="mx-5 mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-700">
+                当前为浏览器演示模式，页面使用 fallback 数据；打开 Tauri 桌面应用后才会读取真实本机资产。
+              </div>
+            )}
             {loadError && (
               <div
                 role="alert"

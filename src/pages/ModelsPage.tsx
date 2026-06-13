@@ -36,6 +36,66 @@ export function getApplySupportLabel(platform?: Platform): string {
   return '支持应用预览';
 }
 
+export interface ModelMatrixRow {
+  bindingId: string;
+  platformName: string;
+  status: 'matched' | 'drifted';
+  summary: string;
+}
+
+export interface ModelMatrixGroup {
+  profileId: string;
+  profileName: string;
+  matchedBindings: number;
+  driftedBindings: number;
+  missingKeys: number;
+  rows: ModelMatrixRow[];
+}
+
+function sameValue(a: string, b: string): boolean {
+  return a.trim().toLowerCase() === b.trim().toLowerCase();
+}
+
+export function buildModelConfigMatrix(
+  profiles: ModelProfile[],
+  bindings: ModelBinding[],
+): ModelMatrixGroup[] {
+  return profiles.map((profile) => {
+    const rows = bindings.map((binding) => {
+      const differences: string[] = [];
+
+      if (!sameValue(profile.provider, binding.detectedProvider)) {
+        differences.push('Provider 不同');
+      }
+      if (!sameValue(profile.modelId, binding.detectedModelId)) {
+        differences.push('模型不同');
+      }
+      if (!sameValue(profile.baseUrl, binding.detectedBaseUrl)) {
+        differences.push('Base URL 不同');
+      }
+      if (!binding.keyPresence) {
+        differences.push('缺少 API Key');
+      }
+
+      return {
+        bindingId: binding.id,
+        platformName: binding.platformName,
+        status: differences.length === 0 ? 'matched' as const : 'drifted' as const,
+        summary: differences.length === 0 ? 'Provider、模型和 Base URL 已一致' : differences.join('、'),
+      };
+    });
+
+    return {
+      profileId: profile.id,
+      profileName: profile.name,
+      matchedBindings: rows.filter((row) => row.status === 'matched').length,
+      driftedBindings: rows.filter((row) => row.status === 'drifted').length,
+      missingKeys: bindings.filter((binding) => !binding.keyPresence).length,
+      rows,
+    };
+  });
+}
+
 export default function ModelsPage({ platforms, modelBindings, onRefresh, onNavigate }: ModelsPageProps) {
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<ModelProfile[]>([]);
@@ -49,6 +109,11 @@ export default function ModelsPage({ platforms, modelBindings, onRefresh, onNavi
   const platformById = useMemo(
     () => new Map(platforms.map((platform) => [platform.id, platform])),
     [platforms],
+  );
+
+  const modelMatrix = useMemo(
+    () => buildModelConfigMatrix(profiles, modelBindings),
+    [profiles, modelBindings],
   );
 
   const loadProfiles = () => {
@@ -184,6 +249,49 @@ export default function ModelsPage({ platforms, modelBindings, onRefresh, onNavi
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <div className="section-card">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900">统一模型矩阵</h3>
+          </div>
+          <div className="p-5 space-y-3">
+            {modelMatrix.length === 0 && (
+              <div className="rounded-xl border border-dashed border-gray-200 p-5 text-sm text-gray-500">
+                暂无可对齐的模型 Profile。扫描或创建 Profile 后会展示跨平台差异。
+              </div>
+            )}
+            {modelMatrix.map((group) => (
+              <div key={group.profileId} className="rounded-xl border border-gray-100 bg-gray-50/60 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-gray-900 whitespace-nowrap">{group.profileName}</div>
+                    <div className="mt-1 text-xs text-gray-500 whitespace-nowrap">
+                      已一致 {group.matchedBindings} · 待对齐 {group.driftedBindings} · 缺 Key {group.missingKeys}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 text-xs">
+                    <span className="rounded-full bg-green-50 px-2 py-1 font-medium text-green-700">
+                      {group.matchedBindings} 一致
+                    </span>
+                    <span className="rounded-full bg-amber-50 px-2 py-1 font-medium text-amber-700">
+                      {group.driftedBindings} 漂移
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-3 grid gap-2">
+                  {group.rows.map((row) => (
+                    <div key={row.bindingId} className="flex items-start justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm">
+                      <span className="font-medium text-gray-800 whitespace-nowrap">{row.platformName}</span>
+                      <span className={row.status === 'matched' ? 'text-green-700' : 'text-amber-700'}>
+                        {row.summary}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
 
