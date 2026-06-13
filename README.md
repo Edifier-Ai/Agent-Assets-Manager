@@ -70,11 +70,15 @@ Run the web shell:
 npm run dev
 ```
 
+This starts the browser shell only. It does not load real local business data, and unsupported runtime flows should stay blocked in this mode.
+
 Run the Tauri desktop app:
 
 ```bash
 npm run tauri dev
 ```
+
+Use this path for real scans, settings persistence, previews, batch operations, and other business flows backed by the local Tauri runtime.
 
 Run frontend tests:
 
@@ -112,7 +116,7 @@ src-tauri/target/release/bundle/dmg/
 
 ```text
 src/
-  api.ts                  Tauri command boundary and development fallback behavior
+  api.ts                  Tauri-only command boundary for runtime business data
   mappers/                DTO-to-view-model mapping layer
   pages/                  Main Chinese UI pages
   components/             Shared app components, including PlatformIcon

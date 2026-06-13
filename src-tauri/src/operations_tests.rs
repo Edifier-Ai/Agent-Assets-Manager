@@ -1,5 +1,26 @@
 use std::fs;
 
+struct AppDataDirOverrideGuard<'a> {
+    _lock: std::sync::MutexGuard<'a, ()>,
+}
+
+impl<'a> AppDataDirOverrideGuard<'a> {
+    fn set(test_root: &std::path::Path) -> Self {
+        let mutex = crate::fileops::APP_DATA_DIR_TEST_LOCK.get_or_init(|| std::sync::Mutex::new(()));
+        let lock = mutex.lock().unwrap();
+        let app_data_root = test_root.join("app-data");
+        fs::create_dir_all(&app_data_root).unwrap();
+        std::env::set_var(crate::fileops::APP_DATA_DIR_OVERRIDE_ENV, &app_data_root);
+        Self { _lock: lock }
+    }
+}
+
+impl Drop for AppDataDirOverrideGuard<'_> {
+    fn drop(&mut self) {
+        std::env::remove_var(crate::fileops::APP_DATA_DIR_OVERRIDE_ENV);
+    }
+}
+
 fn test_platform(id: &str, name: &str, root: &std::path::Path) -> crate::db::Platform {
     crate::db::Platform {
         id: id.to_string(),
@@ -66,6 +87,7 @@ fn execute_delete_writes_operation_log_and_backup_record() {
         chrono::Utc::now().timestamp_nanos_opt().unwrap()
     ));
     fs::create_dir_all(&test_root).unwrap();
+    let _guard = AppDataDirOverrideGuard::set(&test_root);
 
     let db_path = test_root.join("data.db");
     crate::db::init_db(&db_path).unwrap();
@@ -360,6 +382,7 @@ fn execute_install_asset_replaces_existing_skill_directory_and_records_backup() 
         chrono::Utc::now().timestamp_nanos_opt().unwrap()
     ));
     fs::create_dir_all(&test_root).unwrap();
+    let _guard = AppDataDirOverrideGuard::set(&test_root);
 
     let db_path = test_root.join("data.db");
     crate::db::init_db(&db_path).unwrap();
@@ -631,6 +654,7 @@ fn execute_apply_model_profile_updates_config_and_writes_log() {
         chrono::Utc::now().timestamp_nanos_opt().unwrap()
     ));
     fs::create_dir_all(&test_root).unwrap();
+    let _guard = AppDataDirOverrideGuard::set(&test_root);
 
     let db_path = test_root.join("data.db");
     crate::db::init_db(&db_path).unwrap();
@@ -710,6 +734,7 @@ fn execute_apply_model_profile_preserves_unrelated_yaml_keys() {
         chrono::Utc::now().timestamp_nanos_opt().unwrap()
     ));
     fs::create_dir_all(&test_root).unwrap();
+    let _guard = AppDataDirOverrideGuard::set(&test_root);
 
     let db_path = test_root.join("data.db");
     crate::db::init_db(&db_path).unwrap();
@@ -769,6 +794,7 @@ fn create_backup_generates_unique_paths_for_repeated_backups() {
         chrono::Utc::now().timestamp_nanos_opt().unwrap()
     ));
     fs::create_dir_all(&test_root).unwrap();
+    let _guard = AppDataDirOverrideGuard::set(&test_root);
 
     let file_path = test_root.join("config.json");
     fs::write(&file_path, r#"{"model":"old"}"#).unwrap();
@@ -790,6 +816,7 @@ fn execute_restore_backs_up_conflicting_target_and_links_operation_log() {
         chrono::Utc::now().timestamp_nanos_opt().unwrap()
     ));
     fs::create_dir_all(&test_root).unwrap();
+    let _guard = AppDataDirOverrideGuard::set(&test_root);
 
     let db_path = test_root.join("data.db");
     crate::db::init_db(&db_path).unwrap();

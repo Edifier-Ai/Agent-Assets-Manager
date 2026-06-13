@@ -13,7 +13,7 @@ import DiagnosticsPage from './pages/DiagnosticsPage';
 import ScanPage from './pages/ScanPage';
 import BackupsPage from './pages/BackupsPage';
 import OperationsPage from './pages/OperationsPage';
-import SettingsPage from './pages/SettingsPage';
+import SettingsPage, { applyThemePreference } from './pages/SettingsPage';
 import FirstRunWizard from './components/FirstRunWizard';
 import { ToastProvider, useToast } from './components/Toast';
 import * as api from './api';
@@ -44,8 +44,27 @@ const pageComponents: Record<NavPage, ComponentType<any>> = {
   settings: SettingsPage,
 };
 
-function getErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error && error.message ? error.message : fallback;
+function getErrorMessage(error: unknown, defaultMessage: string): string {
+  return error instanceof Error && error.message ? error.message : defaultMessage;
+}
+
+function UnsupportedRuntimeState() {
+  return (
+    <div className="flex h-screen w-screen items-center justify-center bg-slate-100 px-6">
+      <div className="w-full max-w-xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        <h1 className="text-2xl font-semibold text-slate-900">当前运行在浏览器壳中</h1>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          当前环境不会读取任何本机业务数据，应用已移除浏览器演示数据路径。
+        </p>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          仅 Tauri 桌面应用支持真实数据、扫描、设置保存和批量操作预览。
+        </p>
+        <div className="mt-5 rounded-lg bg-slate-900 px-4 py-3 font-mono text-sm text-slate-100">
+          npm run tauri dev
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function AppShell() {
@@ -112,6 +131,39 @@ function AppShell() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return undefined;
+    }
+
+    const root = document.documentElement;
+    const mediaQuery = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia('(prefers-color-scheme: dark)')
+      : null;
+
+    const applyCurrentTheme = () => {
+      applyThemePreference(settings?.theme ?? 'system', root, mediaQuery?.matches ?? false);
+    };
+
+    applyCurrentTheme();
+
+    if (!mediaQuery || settings?.theme !== 'system') {
+      return undefined;
+    }
+
+    const handleSystemThemeChange = () => {
+      applyCurrentTheme();
+    };
+
+    if (typeof mediaQuery.addEventListener === 'function') {
+      mediaQuery.addEventListener('change', handleSystemThemeChange);
+      return () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
+    }
+
+    mediaQuery.addListener(handleSystemThemeChange);
+    return () => mediaQuery.removeListener(handleSystemThemeChange);
+  }, [settings?.theme]);
 
   const handleNavigate = useCallback((page: NavPage, options?: { assetFilter?: AssetFilterId }) => {
     if (settingsDirty && currentPage === 'settings' && page !== 'settings') {
@@ -198,7 +250,6 @@ function AppShell() {
   }, [showToast]);
 
   const PageComponent = pageComponents[currentPage];
-  const developmentFallbackMode = api.isDevelopmentFallbackMode();
 
   const pageProps = {
     platforms,
@@ -231,11 +282,6 @@ function AppShell() {
           />
           <div className="flex-1 flex flex-col min-w-0">
             <StatusBar lastScanTime={lastScanTime} onRescan={handleRescan} loading={loading} />
-            {developmentFallbackMode && (
-              <div className="mx-5 mt-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm text-blue-700">
-                当前为浏览器演示模式，页面使用 fallback 数据；打开 Tauri 桌面应用后才会读取真实本机资产。
-              </div>
-            )}
             {loadError && (
               <div
                 role="alert"
@@ -304,6 +350,14 @@ function AppShell() {
 }
 
 export default function App() {
+  if (!api.isTauriRuntime()) {
+    return (
+      <ToastProvider>
+        <UnsupportedRuntimeState />
+      </ToastProvider>
+    );
+  }
+
   return (
     <ToastProvider>
       <AppShell />

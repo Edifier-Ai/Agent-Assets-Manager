@@ -10,20 +10,30 @@ pub struct FileMutationResult {
     pub backup: Backup,
 }
 
-pub fn get_trash_dir() -> PathBuf {
-    let trash = dirs::data_dir()
+pub(crate) const APP_DATA_DIR_OVERRIDE_ENV: &str = "AGENT_ASSETS_MANAGER_APP_DATA_DIR";
+
+#[cfg(test)]
+pub(crate) static APP_DATA_DIR_TEST_LOCK: std::sync::OnceLock<std::sync::Mutex<()>> =
+    std::sync::OnceLock::new();
+
+fn app_data_dir() -> PathBuf {
+    if let Some(override_path) = std::env::var_os(APP_DATA_DIR_OVERRIDE_ENV) {
+        return PathBuf::from(override_path);
+    }
+
+    dirs::data_dir()
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| std::env::temp_dir()))
         .join("Agent Assets Manager")
-        .join("Trash");
+}
+
+pub fn get_trash_dir() -> PathBuf {
+    let trash = app_data_dir().join("Trash");
     fs::create_dir_all(&trash).ok();
     trash
 }
 
 pub fn get_backup_dir() -> PathBuf {
-    let backup = dirs::data_dir()
-        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| std::env::temp_dir()))
-        .join("Agent Assets Manager")
-        .join("Backups");
+    let backup = app_data_dir().join("Backups");
     fs::create_dir_all(&backup).ok();
     backup
 }
@@ -214,10 +224,7 @@ pub fn disable_asset_with_operation(
         return Err(format!("路径不存在: {}", path_str));
     }
 
-    let disabled_dir = dirs::data_dir()
-        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| std::env::temp_dir()))
-        .join("Agent Assets Manager")
-        .join("Disabled");
+    let disabled_dir = app_data_dir().join("Disabled");
     fs::create_dir_all(&disabled_dir).ok();
 
     let name = src
@@ -265,4 +272,48 @@ pub fn is_sensitive_file(path: &str) -> bool {
         || lower.ends_with(".key")
         || lower.ends_with(".pem")
         || lower.ends_with(".p12")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct AppDataDirOverrideGuard<'a> {
+        _lock: std::sync::MutexGuard<'a, ()>,
+    }
+
+    impl<'a> AppDataDirOverrideGuard<'a> {
+        fn set(path: &Path) -> Self {
+            let mutex = APP_DATA_DIR_TEST_LOCK.get_or_init(|| std::sync::Mutex::new(()));
+            let lock = mutex.lock().unwrap();
+            std::env::set_var(APP_DATA_DIR_OVERRIDE_ENV, path);
+            Self { _lock: lock }
+        }
+    }
+
+    impl Drop for AppDataDirOverrideGuard<'_> {
+        fn drop(&mut self) {
+            std::env::remove_var(APP_DATA_DIR_OVERRIDE_ENV);
+        }
+    }
+
+    #[test]
+    fn create_backup_uses_overridden_app_data_dir() {
+        let test_root = std::env::temp_dir().join(format!(
+            "agent-assets-manager-fileops-override-{}",
+            Utc::now().timestamp_nanos_opt().unwrap()
+        ));
+        fs::create_dir_all(&test_root).unwrap();
+        let app_data_root = test_root.join("app-data");
+        let _guard = AppDataDirOverrideGuard::set(&app_data_root);
+
+        let source_path = test_root.join("config.json");
+        fs::write(&source_path, r#"{"model":"old"}"#).unwrap();
+
+        let backup_path = create_backup(&source_path.to_string_lossy()).unwrap();
+
+        assert!(Path::new(&backup_path).starts_with(app_data_root.join("Backups")));
+
+        fs::remove_dir_all(&test_root).unwrap();
+    }
 }

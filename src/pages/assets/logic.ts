@@ -47,6 +47,26 @@ export function normalizePlatform(value: string): string {
   return value.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
 }
 
+const platformPathHints: Record<string, string[]> = {
+  codex: ['/.codex/'],
+  claude: ['/.claude/'],
+  opencode: ['/.config/opencode/', '/.opencode/'],
+  hermes: ['/.hermes/'],
+  openclaw: ['/.openclaw/'],
+  kimi: ['/.kimi-code/', '/.kimi/'],
+  gemini: ['/.gemini/'],
+  qwen: ['/.qwen-code/', '/.qwen/'],
+  cursor: ['/.cursor/'],
+  trae: ['/.trae/', '/library/application support/trae/'],
+};
+
+function inferPlatformsFromPath(path: string): string[] {
+  const normalizedPath = path.toLowerCase().replace(/\\/g, '/');
+  return Object.entries(platformPathHints)
+    .filter(([, hints]) => hints.some((hint) => normalizedPath.includes(hint)))
+    .map(([platform]) => platform);
+}
+
 export function assetMatchesSearch(asset: Asset, query: string): boolean {
   const normalizedQuery = query.trim().toLowerCase();
   if (!normalizedQuery) return true;
@@ -66,11 +86,26 @@ export function assetMatchesSearch(asset: Asset, query: string): boolean {
 }
 
 export function isInstalledOnPlatform(asset: Asset, target: PlatformTarget): boolean {
-  const targetId = normalizePlatform(target.id);
+  const targetKeys = [
+    target.id,
+    target.name,
+    target.kind,
+  ].map(normalizePlatform).filter(Boolean);
+
   return asset.installations.some((installation) => {
-    const platformId = normalizePlatform(installation.platformId);
-    const platformName = normalizePlatform(installation.platformName);
-    return platformId.includes(targetId) || platformName.includes(targetId);
+    const installationKeys = [
+      installation.platformId,
+      installation.platformName,
+      ...inferPlatformsFromPath(installation.path),
+    ].map(normalizePlatform).filter(Boolean);
+
+    return targetKeys.some((targetKey) => (
+      installationKeys.some((installationKey) => (
+        installationKey === targetKey
+          || installationKey.includes(targetKey)
+          || targetKey.includes(installationKey)
+      ))
+    ));
   });
 }
 

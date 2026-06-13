@@ -1,15 +1,5 @@
 import { invoke, isTauri as isTauriCoreRuntime } from '@tauri-apps/api/core';
 import {
-  fallbackAssets,
-  fallbackBackups,
-  fallbackFindings,
-  fallbackModelBindings,
-  fallbackPlatforms,
-  fallbackScanRuns,
-  fallbackScanSummary,
-  fallbackSettings,
-} from './data/mockData';
-import {
   mapModelProfileDto,
   mapAssetDto,
   mapBackupDto,
@@ -70,12 +60,16 @@ interface ApiResponse<T> {
   error?: string;
 }
 
+const UNSUPPORTED_RUNTIME_MESSAGE = 'Real business data is available only in the Tauri desktop app.';
+
 export function isTauriRuntime(): boolean {
   return isTauriCoreRuntime();
 }
 
-export function isDevelopmentFallbackMode(): boolean {
-  return !isTauriRuntime();
+function assertTauriRuntime(): void {
+  if (!isTauriRuntime()) {
+    throw new Error(UNSUPPORTED_RUNTIME_MESSAGE);
+  }
 }
 
 async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -90,17 +84,13 @@ async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>): Promis
 }
 
 export async function scanPlatforms(): Promise<Platform[]> {
-  if (!isTauriRuntime()) {
-    return fallbackPlatforms;
-  }
+  assertTauriRuntime();
   const data = await invokeCmd<PlatformDto[]>('scan_platforms');
   return data.map(mapPlatformDto);
 }
 
 export async function scanAssets(input: ScanAssetsInput = {}): Promise<ScanSummary> {
-  if (!isTauriRuntime()) {
-    return fallbackScanSummary;
-  }
+  assertTauriRuntime();
   const scanRoots = input.scanRoots?.map((path) => path.trim()).filter(Boolean) ?? [];
   const data = await invokeCmd<ScanSummaryDto>('scan_assets', {
     request: {
@@ -111,97 +101,61 @@ export async function scanAssets(input: ScanAssetsInput = {}): Promise<ScanSumma
 }
 
 export async function getPlatforms(): Promise<Platform[]> {
-  if (!isTauriRuntime()) {
-    return fallbackPlatforms;
-  }
+  assertTauriRuntime();
   const data = await invokeCmd<PlatformDto[]>('get_platforms');
   return data.map(mapPlatformDto);
 }
 
 export async function getAssets(): Promise<Asset[]> {
-  if (!isTauriRuntime()) {
-    return fallbackAssets;
-  }
+  assertTauriRuntime();
   const data = await invokeCmd<AssetDto[]>('get_assets');
   return data.map(mapAssetDto);
 }
 
 export async function getModelBindings(): Promise<ModelBinding[]> {
-  if (!isTauriRuntime()) {
-    return fallbackModelBindings;
-  }
+  assertTauriRuntime();
   const data = await invokeCmd<ModelBindingDto[]>('get_model_bindings');
   return data.map(mapModelBindingDto);
 }
 
 export async function getModelProfiles(): Promise<ModelProfile[]> {
-  if (!isTauriRuntime()) {
-    return [];
-  }
+  assertTauriRuntime();
   const data = await invokeCmd<ModelProfileDto[]>('get_model_profiles');
   return data.map(mapModelProfileDto);
 }
 
 export async function getBackups(): Promise<Backup[]> {
-  if (!isTauriRuntime()) {
-    return fallbackBackups;
-  }
+  assertTauriRuntime();
   const data = await invokeCmd<BackupDto[]>('get_backups');
   return data.map(mapBackupDto);
 }
 
 export async function getOperationLogs(): Promise<OperationLog[]> {
-  if (!isTauriRuntime()) {
-    return [];
-  }
+  assertTauriRuntime();
   const dtos = await invokeCmd<OperationLogDto[]>('get_operation_logs');
   return dtos.map(mapOperationLogDto);
 }
 
 export async function getFindings(): Promise<Finding[]> {
-  if (!isTauriRuntime()) {
-    return fallbackFindings;
-  }
+  assertTauriRuntime();
   const data = await invokeCmd<FindingDto[]>('get_findings');
   return data.map(mapFindingDto);
 }
 
 export async function getScanRuns(): Promise<ScanRun[]> {
-  if (!isTauriRuntime()) {
-    return fallbackScanRuns;
-  }
+  assertTauriRuntime();
   const data = await invokeCmd<ScanRunDto[]>('get_scan_runs');
   return data.map(mapScanRunDto);
 }
 
 export async function getAssetDetail(assetId: string): Promise<Asset> {
-  if (!isTauriRuntime()) {
-    const asset = fallbackAssets.find((item) => item.id === assetId);
-    if (!asset) throw new Error(`Fallback asset not found: ${assetId}`);
-    return asset;
-  }
+  assertTauriRuntime();
   const data = await invokeCmd<AssetDto>('get_asset_detail', { request: { asset_id: assetId } });
   return mapAssetDto(data);
 }
 
 export async function previewOperation(request: OperationRequest): Promise<OperationPreview> {
-  if (!isTauriRuntime()) {
-    return {
-      operationType: request.operationType,
-      targetId: request.targetId,
-      targetName: request.targetName,
-      targetType: request.targetType,
-      targetPath: request.targetPath,
-      sourcePath: request.sourcePath,
-      filesToModify: [request.targetPath],
-      filesToMove: [],
-      backupPaths: [],
-      writtenKeys: [],
-      needsRestart: false,
-      risks: ['Development fallback: no files will be modified outside Tauri.'],
-      supported: false,
-    };
-  }
+  assertTauriRuntime();
   const data = await invokeCmd<OperationPreviewDto>('preview_operation', {
     request: mapOperationRequest(request) as OperationRequestDto,
   });
@@ -211,9 +165,7 @@ export async function previewOperation(request: OperationRequest): Promise<Opera
 export async function executeOperation(
   request: OperationRequest,
 ): Promise<OperationExecutionResult> {
-  if (!isTauriRuntime()) {
-    throw new Error('File operations require the Tauri desktop app.');
-  }
+  assertTauriRuntime();
   const data = await invokeCmd<OperationExecutionResultDto>('execute_operation', {
     request: { preview: mapOperationRequest(request) },
   });
@@ -221,17 +173,13 @@ export async function executeOperation(
 }
 
 export async function getSettings(): Promise<AppSettings> {
-  if (!isTauriRuntime()) {
-    return fallbackSettings;
-  }
+  assertTauriRuntime();
   const data = await invokeCmd<AppSettingsDto>('get_settings');
   return mapSettingsDto(data);
 }
 
 export async function saveSettings(settings: SaveSettingsInput): Promise<string> {
-  if (!isTauriRuntime()) {
-    return `Development fallback: settings were not persisted (${settings.theme}).`;
-  }
+  assertTauriRuntime();
   return invokeCmd('save_settings', { request: mapSaveSettingsInput(settings) });
 }
 
@@ -240,72 +188,17 @@ export async function previewSkillSyncPlan(
   strategy: string,
   sourcePlatformId?: string,
 ): Promise<BatchSyncPreview> {
-  if (!isTauriRuntime()) {
-    return buildFallbackBatchSyncPreview(assetIds, strategy, sourcePlatformId);
-  }
+  assertTauriRuntime();
   const data = await invokeCmd<BatchSyncPreviewDto>('preview_skill_sync_plan', {
     request: { asset_ids: assetIds, strategy, source_platform_id: sourcePlatformId ?? null },
   });
   return mapBatchSyncPreviewDto(data);
 }
 
-function buildFallbackBatchSyncPreview(
-  assetIds: string[],
-  strategy: string,
-  sourcePlatformId?: string,
-): BatchSyncPreview {
-  const selectedAssets = fallbackAssets.filter((asset) => assetIds.includes(asset.id) && asset.type === 'Skill');
-  const items = selectedAssets.flatMap((asset) => {
-    const sourceInstallation = sourcePlatformId
-      ? asset.installations.find((installation) => installation.platformId === sourcePlatformId)
-      : asset.installations[0];
-    if (!sourceInstallation) return [];
-
-    return fallbackPlatforms
-      .filter((platform) => platform.status === 'active')
-      .map((platform) => {
-        const existing = asset.installations.find((installation) => installation.platformId === platform.id);
-        const targetPath = existing?.path ?? `${platform.configRoots[0]?.replace(/\/+$/g, '')}/${
-          platform.id === 'cursor' ? 'skills-cursor' : 'skills'
-        }/${asset.name}`;
-        const action = platform.writable === 'readonly'
-          ? 'skip'
-          : existing
-            ? 'skip'
-            : 'install';
-        return {
-          assetId: asset.id,
-          assetName: asset.name,
-          targetPlatform: platform.id,
-          targetPlatformName: platform.name,
-          targetPath,
-          sourcePath: sourceInstallation.path.replace(/\/SKILL\.md$/i, ''),
-          action,
-          reason: action === 'install' ? '将安装到新平台' : existing ? '已安装且内容一致' : `${platform.name} 当前只读`,
-          supported: action === 'install',
-          existingHash: existing?.contentHash,
-          sourceHash: sourceInstallation.contentHash || asset.canonicalHash || asset.directoryHash,
-        };
-      });
-  });
-  const installCount = items.filter((item) => item.action === 'install').length;
-  const skipCount = items.filter((item) => item.action === 'skip').length;
-
-  return {
-    strategy,
-    totalItems: items.length,
-    items,
-    hasConflicts: false,
-    summary: `共 ${items.length} 项：${installCount} 安装、${skipCount} 跳过、0 冲突`,
-  };
-}
-
 export async function executeSkillSyncPlan(
   request: BatchSyncRequest,
 ): Promise<BatchSyncResult> {
-  if (!isTauriRuntime()) {
-    throw new Error('Batch sync operations require the Tauri desktop app.');
-  }
+  assertTauriRuntime();
   const data = await invokeCmd<BatchSyncResultDto>('execute_skill_sync_plan', {
     request: mapBatchSyncRequest(request),
   });

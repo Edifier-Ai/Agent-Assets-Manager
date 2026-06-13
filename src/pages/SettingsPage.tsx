@@ -15,6 +15,14 @@ interface SettingsPageProps {
 const DEFAULT_SCAN_PATHS = ['~/.codex', '~/.claude', '~/.opencode', '~/.hermes', '~/.openclaw'];
 const DEFAULT_DB_LOCATION = '~/Library/Application Support/Agent Assets Manager/data.db';
 const DEFAULT_TRASH_LOCATION = '~/Library/Application Support/Agent Assets Manager/Trash';
+type AppliedTheme = 'light' | 'dark';
+
+interface ThemeClassTarget {
+  classList: {
+    toggle: (className: string, force?: boolean) => boolean;
+  };
+  setAttribute?: (name: string, value: string) => void;
+}
 
 function validatePath(value: string): string | undefined {
   if (!value.trim()) return '路径不能为空';
@@ -39,6 +47,23 @@ export function resolveSettingsFormState(settings?: AppSettings): SaveSettingsIn
     dbLocation: settings?.dbLocation ?? DEFAULT_DB_LOCATION,
     trashLocation: settings?.trashLocation ?? DEFAULT_TRASH_LOCATION,
   };
+}
+
+export function resolveAppliedTheme(theme: string, prefersDark: boolean): AppliedTheme {
+  return theme === 'dark' || (theme === 'system' && prefersDark) ? 'dark' : 'light';
+}
+
+export function applyThemePreference(
+  theme: string,
+  root: ThemeClassTarget,
+  prefersDark: boolean,
+): AppliedTheme {
+  const appliedTheme = resolveAppliedTheme(theme, prefersDark);
+  root.classList.toggle('dark', appliedTheme === 'dark');
+  root.classList.toggle('theme-dark', appliedTheme === 'dark');
+  root.classList.toggle('theme-light', appliedTheme === 'light');
+  root.setAttribute?.('data-theme', appliedTheme);
+  return appliedTheme;
 }
 
 export default function SettingsPage({ settings, onSaveSettings, onDirtyChange }: SettingsPageProps) {
@@ -144,155 +169,160 @@ export default function SettingsPage({ settings, onSaveSettings, onDirtyChange }
   };
 
   return (
-    <div className="flex h-full overflow-y-auto">
-      <div className="flex-1 p-5 max-w-2xl mx-auto w-full space-y-5">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 whitespace-nowrap">设置</h2>
-          <p className="text-sm text-gray-500 mt-1">配置扫描、数据、安全和外观偏好</p>
-        </div>
-
-        <div className="section-card">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <Folder className="w-4 h-4 text-gray-500" />
-              <h3 className="font-semibold text-gray-900">扫描设置</h3>
-            </div>
-          </div>
-          <div className="p-5 space-y-4">
+    <div className="flex h-full overflow-hidden">
+      <div className="mx-auto flex h-full w-full max-w-2xl flex-1 min-h-0 flex-col">
+        <div className="flex-1 overflow-y-auto px-5 pt-5 pb-6">
+          <div className="space-y-5">
             <div>
-              <div className="text-sm font-medium text-gray-700 mb-2 whitespace-nowrap">默认扫描路径</div>
-              <div className="space-y-2">
-                {scanPaths.map((path, i) => (
-                  <div key={i}>
-                    <div className="flex items-center gap-2">
-                      <input
-                        value={path}
-                        onChange={(event) => { updateScanPath(i, event.target.value); setErrors((e) => { const n = { ...e }; delete n[`scanPath-${i}`]; return n; }); }}
-                        onBlur={() => { if (path.trim()) { const err = validatePath(path); setErrors((e) => err ? { ...e, [`scanPath-${i}`]: err } : (() => { const n = { ...e }; delete n[`scanPath-${i}`]; return n; })()); } }}
-                        className={`flex-1 text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border focus:outline-none ${errors[`scanPath-${i}`] ? 'border-red-300 focus:border-red-400' : 'border-transparent focus:border-gray-300'}`}
-                      />
-                      <button
-                        onClick={() => removeScanPath(i)}
-                        className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
-                        title="移除路径"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    {errors[`scanPath-${i}`] && <p className="text-xs text-red-600 mt-1 ml-1">{errors[`scanPath-${i}`]}</p>}
+              <h2 className="text-xl font-bold text-gray-900 whitespace-nowrap">设置</h2>
+              <p className="text-sm text-gray-500 mt-1">配置扫描、数据、安全和外观偏好</p>
+            </div>
+
+            <div className="section-card">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <Folder className="w-4 h-4 text-gray-500" />
+                  <h3 className="font-semibold text-gray-900">扫描设置</h3>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <div>
+                  <div className="text-sm font-medium text-gray-700 mb-2 whitespace-nowrap">默认扫描路径</div>
+                  <div className="space-y-2">
+                    {scanPaths.map((path, i) => (
+                      <div key={i}>
+                        <div className="flex items-center gap-2">
+                          <input
+                            value={path}
+                            onChange={(event) => { updateScanPath(i, event.target.value); setErrors((e) => { const n = { ...e }; delete n[`scanPath-${i}`]; return n; }); }}
+                            onBlur={() => { if (path.trim()) { const err = validatePath(path); setErrors((e) => err ? { ...e, [`scanPath-${i}`]: err } : (() => { const n = { ...e }; delete n[`scanPath-${i}`]; return n; })()); } }}
+                            className={`flex-1 text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border focus:outline-none ${errors[`scanPath-${i}`] ? 'border-red-300 focus:border-red-400' : 'border-transparent focus:border-gray-300'}`}
+                          />
+                          <button
+                            onClick={() => removeScanPath(i)}
+                            className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                            title="移除路径"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        {errors[`scanPath-${i}`] && <p className="text-xs text-red-600 mt-1 ml-1">{errors[`scanPath-${i}`]}</p>}
+                      </div>
+                    ))}
+                    <button
+                      onClick={addScanPath}
+                      className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span className="whitespace-nowrap">添加扫描路径</span>
+                    </button>
                   </div>
-                ))}
-                <button
-                  onClick={addScanPath}
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span className="whitespace-nowrap">添加扫描路径</span>
-                </button>
+                </div>
+
+                <div className="pt-3 border-t border-gray-100 space-y-3">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <span className="text-sm text-gray-700 whitespace-nowrap">包含项目本地路径</span>
+                    <button
+                      role="switch"
+                      aria-checked={includeProjectLocal}
+                      onClick={() => setIncludeProjectLocal(!includeProjectLocal)}
+                      className={`w-11 h-6 rounded-full transition-colors duration-200 ${includeProjectLocal ? 'bg-gray-900' : 'bg-gray-200'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 mt-0.5 ${includeProjectLocal ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </button>
+                  </label>
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <span className="text-sm text-gray-700 whitespace-nowrap">启用深度扫描</span>
+                    <button
+                      role="switch"
+                      aria-checked={enableDeepScan}
+                      onClick={() => setEnableDeepScan(!enableDeepScan)}
+                      className={`w-11 h-6 rounded-full transition-colors duration-200 ${enableDeepScan ? 'bg-gray-900' : 'bg-gray-200'}`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 mt-0.5 ${enableDeepScan ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                    </button>
+                  </label>
+                </div>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-gray-100 space-y-3">
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-sm text-gray-700 whitespace-nowrap">包含项目本地路径</span>
-                <button
-                  role="switch"
-                  aria-checked={includeProjectLocal}
-                  onClick={() => setIncludeProjectLocal(!includeProjectLocal)}
-                  className={`w-11 h-6 rounded-full transition-colors duration-200 ${includeProjectLocal ? 'bg-gray-900' : 'bg-gray-200'}`}
-                >
-                  <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 mt-0.5 ${includeProjectLocal ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                </button>
-              </label>
-              <label className="flex items-center justify-between cursor-pointer">
-                <span className="text-sm text-gray-700 whitespace-nowrap">启用深度扫描</span>
-                <button
-                  role="switch"
-                  aria-checked={enableDeepScan}
-                  onClick={() => setEnableDeepScan(!enableDeepScan)}
-                  className={`w-11 h-6 rounded-full transition-colors duration-200 ${enableDeepScan ? 'bg-gray-900' : 'bg-gray-200'}`}
-                >
-                  <div className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 mt-0.5 ${enableDeepScan ? 'translate-x-5' : 'translate-x-0.5'}`} />
-                </button>
-              </label>
+            <div className="section-card">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <Database className="w-4 h-4 text-gray-500" />
+                  <h3 className="font-semibold text-gray-900">数据设置</h3>
+                </div>
+              </div>
+              <div className="p-5 space-y-4">
+                <FormField label="SQLite 数据库位置" error={errors.dbLocation}>
+                  <input
+                    value={dbLocation}
+                    onChange={(event) => { setDbLocation(event.target.value); setErrors((e) => { const n = { ...e }; delete n.dbLocation; return n; }); }}
+                    onBlur={() => { const err = validateDbPath(dbLocation); setErrors((e) => err ? { ...e, dbLocation: err } : (() => { const n = { ...e }; delete n.dbLocation; return n; })()); }}
+                    className={`block w-full text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border focus:outline-none ${errors.dbLocation ? 'border-red-300 focus:border-red-400' : 'border-transparent focus:border-gray-300'}`}
+                  />
+                </FormField>
+                <FormField label="应用管理回收站位置" error={errors.trashLocation}>
+                  <input
+                    value={trashLocation}
+                    onChange={(event) => { setTrashLocation(event.target.value); setErrors((e) => { const n = { ...e }; delete n.trashLocation; return n; }); }}
+                    onBlur={() => { const err = validatePath(trashLocation); setErrors((e) => err ? { ...e, trashLocation: err } : (() => { const n = { ...e }; delete n.trashLocation; return n; })()); }}
+                    className={`block w-full text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border focus:outline-none ${errors.trashLocation ? 'border-red-300 focus:border-red-400' : 'border-transparent focus:border-gray-300'}`}
+                  />
+                </FormField>
+              </div>
+            </div>
+
+            <div className="section-card">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <Sun className="w-4 h-4 text-gray-500" />
+                  <h3 className="font-semibold text-gray-900">外观</h3>
+                </div>
+              </div>
+              <div className="p-5">
+                <div className="text-sm font-medium text-gray-700 mb-3 whitespace-nowrap">主题</div>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { id: 'system', label: '跟随系统', icon: Monitor },
+                    { id: 'light', label: '浅色', icon: Sun },
+                    { id: 'dark', label: '深色', icon: Moon },
+                  ].map((t) => {
+                    const Icon = t.icon;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => setTheme(t.id)}
+                        className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all duration-200 ${theme === t.id ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-100 hover:border-gray-200 text-gray-600'}`}
+                      >
+                        <Icon className="w-5 h-5" />
+                        <span className="text-sm font-medium whitespace-nowrap">{t.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="section-card">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-gray-500" />
+                  <h3 className="font-semibold text-gray-900">安全</h3>
+                </div>
+              </div>
+              <div className="p-5">
+                <div className="p-3 rounded-lg bg-gray-50 text-sm text-gray-600">
+                  <div className="font-medium text-gray-700 mb-1 whitespace-nowrap">安全确认级别</div>
+                  <p>所有状态变更操作都需要预览确认。删除操作默认移入回收站，永久删除需要二次确认。</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="section-card">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <Database className="w-4 h-4 text-gray-500" />
-              <h3 className="font-semibold text-gray-900">数据设置</h3>
-            </div>
-          </div>
-          <div className="p-5 space-y-4">
-            <FormField label="SQLite 数据库位置" error={errors.dbLocation}>
-              <input
-                value={dbLocation}
-                onChange={(event) => { setDbLocation(event.target.value); setErrors((e) => { const n = { ...e }; delete n.dbLocation; return n; }); }}
-                onBlur={() => { const err = validateDbPath(dbLocation); setErrors((e) => err ? { ...e, dbLocation: err } : (() => { const n = { ...e }; delete n.dbLocation; return n; })()); }}
-                className={`block w-full text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border focus:outline-none ${errors.dbLocation ? 'border-red-300 focus:border-red-400' : 'border-transparent focus:border-gray-300'}`}
-              />
-            </FormField>
-            <FormField label="应用管理回收站位置" error={errors.trashLocation}>
-              <input
-                value={trashLocation}
-                onChange={(event) => { setTrashLocation(event.target.value); setErrors((e) => { const n = { ...e }; delete n.trashLocation; return n; }); }}
-                onBlur={() => { const err = validatePath(trashLocation); setErrors((e) => err ? { ...e, trashLocation: err } : (() => { const n = { ...e }; delete n.trashLocation; return n; })()); }}
-                className={`block w-full text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border focus:outline-none ${errors.trashLocation ? 'border-red-300 focus:border-red-400' : 'border-transparent focus:border-gray-300'}`}
-              />
-            </FormField>
-          </div>
-        </div>
-
-        <div className="section-card">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <Sun className="w-4 h-4 text-gray-500" />
-              <h3 className="font-semibold text-gray-900">外观</h3>
-            </div>
-          </div>
-          <div className="p-5">
-            <div className="text-sm font-medium text-gray-700 mb-3 whitespace-nowrap">主题</div>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { id: 'system', label: '跟随系统', icon: Monitor },
-                { id: 'light', label: '浅色', icon: Sun },
-                { id: 'dark', label: '深色', icon: Moon },
-              ].map((t) => {
-                const Icon = t.icon;
-                return (
-                  <button
-                    key={t.id}
-                    onClick={() => setTheme(t.id)}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all duration-200 ${theme === t.id ? 'border-gray-900 bg-gray-900 text-white' : 'border-gray-100 hover:border-gray-200 text-gray-600'}`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    <span className="text-sm font-medium whitespace-nowrap">{t.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        <div className="section-card">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <Shield className="w-4 h-4 text-gray-500" />
-              <h3 className="font-semibold text-gray-900">安全</h3>
-            </div>
-          </div>
-          <div className="p-5">
-            <div className="p-3 rounded-lg bg-gray-50 text-sm text-gray-600">
-              <div className="font-medium text-gray-700 mb-1 whitespace-nowrap">安全确认级别</div>
-              <p>所有状态变更操作都需要预览确认。删除操作默认移入回收站，永久删除需要二次确认。</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-end gap-3">
+        <div className="sticky bottom-0 z-10 shrink-0 border-t border-gray-200/80 bg-white/95 px-5 py-4 backdrop-blur supports-[backdrop-filter]:bg-white/80 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="flex items-center justify-end gap-3">
           {isDirty && (
             <span className="flex items-center gap-1.5 text-xs text-amber-600">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
@@ -322,6 +352,7 @@ export default function SettingsPage({ settings, onSaveSettings, onDirtyChange }
               </>
             )}
           </button>
+        </div>
         </div>
       </div>
     </div>

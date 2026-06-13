@@ -1,6 +1,9 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { ToastProvider } from '../components/Toast';
 import type { AppSettings } from '../types';
-import { resolveSettingsFormState } from './SettingsPage';
+import SettingsPage, { applyThemePreference, resolveSettingsFormState } from './SettingsPage';
 
 describe('resolveSettingsFormState', () => {
   it('uses persisted settings when available', () => {
@@ -33,5 +36,61 @@ describe('resolveSettingsFormState', () => {
       dbLocation: '~/Library/Application Support/Agent Assets Manager/data.db',
       trashLocation: '~/Library/Application Support/Agent Assets Manager/Trash',
     });
+  });
+});
+
+describe('applyThemePreference', () => {
+  it('uses system preference when theme follows the OS', () => {
+    const classNames = new Set<string>();
+    const root = {
+      classList: {
+        toggle(className: string, force?: boolean) {
+          if (force) {
+            classNames.add(className);
+            return true;
+          }
+          classNames.delete(className);
+          return false;
+        },
+      },
+    };
+
+    const appliedTheme = applyThemePreference('system', root, true);
+
+    expect(appliedTheme).toBe('dark');
+    expect(classNames.has('dark')).toBe(true);
+  });
+
+  it('removes dark mode when light theme is selected explicitly', () => {
+    const classNames = new Set<string>(['dark']);
+    const root = {
+      classList: {
+        toggle(className: string, force?: boolean) {
+          if (force) {
+            classNames.add(className);
+            return true;
+          }
+          classNames.delete(className);
+          return false;
+        },
+      },
+    };
+
+    const appliedTheme = applyThemePreference('light', root, true);
+
+    expect(appliedTheme).toBe('light');
+    expect(classNames.has('dark')).toBe(false);
+  });
+});
+
+describe('SettingsPage layout', () => {
+  it('keeps the reset and save actions pinned inside the settings viewport', () => {
+    const html = renderToStaticMarkup(
+      createElement(ToastProvider, { children: createElement(SettingsPage, {}) }),
+    );
+
+    expect(html).toContain('sticky');
+    expect(html).toContain('bottom-0');
+    expect(html).toContain('pb-[max(1rem,env(safe-area-inset-bottom))]');
   });
 });
