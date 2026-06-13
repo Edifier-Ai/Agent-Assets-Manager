@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 const SETTINGS_MIGRATION_VERSION: &str = "2026-06-13-settings-persistence";
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Platform {
     pub id: String,
     pub name: String,

@@ -1,7 +1,6 @@
 use crate::db;
 use crate::db::get_db_connection;
 use crate::operations;
-use crate::platform::detect_all_platforms;
 use crate::scanner;
 use serde::{Deserialize, Serialize};
 
@@ -30,14 +29,30 @@ impl<T> ApiResponse<T> {
 }
 
 #[tauri::command]
-pub fn scan_platforms() -> ApiResponse<Vec<db::Platform>> {
+pub fn scan_platforms(
+    cache: tauri::State<'_, crate::platform::PlatformCache>,
+) -> ApiResponse<Vec<db::Platform>> {
+    // Check cache first — avoid re-spawning binaries within TTL
+    {
+        let guard = cache.inner.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((cached_at, ref platforms)) = *guard {
+            if cached_at.elapsed() < crate::platform::CACHE_TTL {
+                return ApiResponse::ok(platforms.clone());
+            }
+        }
+    }
+
+    // Cache miss — detect and persist
     let conn = match get_db_connection() {
         Ok(c) => c,
         Err(e) => return ApiResponse::err(e.to_string()),
     };
     let now = chrono::Utc::now().to_rfc3339();
 
-    for dp in detect_all_platforms() {
+    let detected = crate::platform::detect_all_platforms();
+    let mut db_platforms: Vec<db::Platform> = Vec::new();
+
+    for dp in detected {
         let platform = db::Platform {
             id: dp.id.clone(),
             name: dp.kind.display_name().to_string(),
@@ -54,6 +69,13 @@ pub fn scan_platforms() -> ApiResponse<Vec<db::Platform>> {
         if let Err(e) = db::insert_platform(&conn, &platform) {
             return ApiResponse::err(e.to_string());
         }
+        db_platforms.push(platform);
+    }
+
+    // Populate cache with freshly detected platforms
+    {
+        let mut guard = cache.inner.lock().unwrap_or_else(|e| e.into_inner());
+        *guard = Some((std::time::Instant::now(), db_platforms));
     }
 
     match db::get_all_platforms(&conn) {
@@ -63,12 +85,18 @@ pub fn scan_platforms() -> ApiResponse<Vec<db::Platform>> {
 }
 
 #[tauri::command]
-pub fn scan_assets(request: Option<ScanAssetsRequest>) -> ApiResponse<scanner::ScanResult> {
+pub async fn scan_assets(
+    request: Option<ScanAssetsRequest>,
+    cache: tauri::State<'_, crate::platform::PlatformCache>,
+) -> Result<ApiResponse<scanner::ScanResult>, String> {
+    let request = request.unwrap_or_default();
+    let scan_roots_raw = request.scan_roots.unwrap_or_default();
+
+    // Read settings synchronously before spawning (fast DB call)
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return Ok(ApiResponse::err(e.to_string())),
     };
-
     let context = default_settings_context();
     let settings = match db::get_settings(
         &conn,
@@ -76,26 +104,38 @@ pub fn scan_assets(request: Option<ScanAssetsRequest>) -> ApiResponse<scanner::S
         &context.db_location,
         &context.trash_location,
     ) {
-        Ok(settings) => settings,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Ok(s) => s,
+        Err(e) => return Ok(ApiResponse::err(e.to_string())),
     };
-    let request = request.unwrap_or_default();
-    let explicit_roots = sanitize_paths(request.scan_roots.unwrap_or_default(), Vec::new());
+
+    let explicit_roots = sanitize_paths(scan_roots_raw, Vec::new());
     let scan_roots = if explicit_roots.is_empty() && settings.enable_deep_scan {
         settings.scan_paths
     } else {
         explicit_roots
     };
-    let result = if scan_roots.is_empty() {
-        scanner::run_full_scan(&conn)
-    } else {
-        scanner::run_full_scan_with_custom_roots(&conn, scan_roots)
-    };
 
-    match result {
-        Ok(result) => ApiResponse::ok(result),
-        Err(e) => ApiResponse::err(e.to_string()),
-    }
+    // Offload blocking WalkDir + hashing work to a thread-pool thread.
+    // Map errors to String inside the closure so the return type is Send + 'static.
+    let result = tokio::task::spawn_blocking(move || {
+        let conn = get_db_connection().map_err(|e| e.to_string())?;
+        if scan_roots.is_empty() {
+            scanner::run_full_scan(&conn).map_err(|e| e.to_string())
+        } else {
+            scanner::run_full_scan_with_extra_roots(&conn, scan_roots).map_err(|e| e.to_string())
+        }
+    })
+    .await;
+
+    Ok(match result {
+        Ok(Ok(scan_result)) => {
+            // Invalidate platform cache so next scan_platforms reflects fresh data
+            cache.invalidate();
+            ApiResponse::ok(scan_result)
+        }
+        Ok(Err(e)) => ApiResponse::err(e),
+        Err(join_err) => ApiResponse::err(format!("scan task panicked: {join_err}")),
+    })
 }
 
 #[tauri::command]
@@ -277,6 +317,12 @@ fn default_settings_context() -> SettingsContext {
             home.join(".opencode").to_string_lossy().to_string(),
             home.join(".hermes").to_string_lossy().to_string(),
             home.join(".openclaw").to_string_lossy().to_string(),
+            home.join(".kimi-code").to_string_lossy().to_string(),
+            home.join(".gemini").to_string_lossy().to_string(),
+            home.join(".qwen").to_string_lossy().to_string(),
+            home.join(".cursor").to_string_lossy().to_string(),
+            home.join(".trae").to_string_lossy().to_string(),
+            home.join(".trae-cn").to_string_lossy().to_string(),
         ],
         db_location: db::default_db_path().to_string_lossy().to_string(),
         trash_location: db::default_trash_path().to_string_lossy().to_string(),

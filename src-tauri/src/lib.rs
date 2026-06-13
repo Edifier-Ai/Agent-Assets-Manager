@@ -51,6 +51,7 @@ pub fn run() {
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .manage(platform::PlatformCache::new())
         .setup(|app| setup_app(app).map_err(Into::into))
         .invoke_handler(tauri::generate_handler![
             commands::scan_platforms,
