@@ -1,21 +1,68 @@
 import { useToast } from '../components/Toast';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Folder, Database, Sun, Moon, Monitor, Shield, Save, RotateCcw, CheckCircle2
 } from 'lucide-react';
+import type { AppSettings, SaveSettingsInput } from '../types';
 
-export default function SettingsPage() {
+interface SettingsPageProps {
+  settings?: AppSettings;
+  onSaveSettings?: (settings: SaveSettingsInput) => Promise<void>;
+}
+
+const DEFAULT_SCAN_PATHS = ['~/.codex', '~/.claude', '~/.opencode', '~/.hermes', '~/.openclaw'];
+
+export function resolveSettingsFormState(settings?: AppSettings): SaveSettingsInput & { scanPaths: string[] } {
+  return {
+    theme: settings?.theme ?? 'system',
+    scanPaths: settings?.scanPaths ?? DEFAULT_SCAN_PATHS,
+    includeProjectLocal: settings?.includeProjectLocal ?? true,
+    enableDeepScan: settings?.enableDeepScan ?? false,
+  };
+}
+
+export default function SettingsPage({ settings, onSaveSettings }: SettingsPageProps) {
   const [theme, setTheme] = useState('system');
-  const [scanPaths] = useState(['~/.codex', '~/.claude', '~/.opencode', '~/.hermes', '~/.openclaw']);
+  const [scanPaths, setScanPaths] = useState<string[]>(DEFAULT_SCAN_PATHS);
   const [includeProjectLocal, setIncludeProjectLocal] = useState(true);
   const [enableDeepScan, setEnableDeepScan] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
 
-  const handleSave = () => {
-    setSaved(true);
-    showToast('设置已保存', 'success');
-    setTimeout(() => setSaved(false), 2000);
+  useEffect(() => {
+    const nextState = resolveSettingsFormState(settings);
+    setTheme(nextState.theme);
+    setScanPaths(nextState.scanPaths);
+    setIncludeProjectLocal(nextState.includeProjectLocal);
+    setEnableDeepScan(nextState.enableDeepScan);
+  }, [settings]);
+
+  const handleReset = () => {
+    const nextState = resolveSettingsFormState(settings);
+    setTheme(nextState.theme);
+    setScanPaths(nextState.scanPaths);
+    setIncludeProjectLocal(nextState.includeProjectLocal);
+    setEnableDeepScan(nextState.enableDeepScan);
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      await onSaveSettings?.({
+        theme,
+        includeProjectLocal,
+        enableDeepScan,
+      });
+      setSaved(true);
+      showToast('设置已保存', 'success');
+      setTimeout(() => setSaved(false), 2000);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '设置保存失败';
+      showToast(message, 'error');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -82,13 +129,13 @@ export default function SettingsPage() {
             <div>
               <div className="text-sm font-medium text-gray-700 mb-1.5">SQLite 数据库位置</div>
               <code className="block text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg">
-                ~/Library/Application Support/Agent Assets Manager/data.db
+                {settings?.dbLocation ?? '~/Library/Application Support/Agent Assets Manager/data.db'}
               </code>
             </div>
             <div>
               <div className="text-sm font-medium text-gray-700 mb-1.5">应用管理回收站位置</div>
               <code className="block text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg">
-                ~/Library/Application Support/Agent Assets Manager/Trash
+                {settings?.trashLocation ?? '~/Library/Application Support/Agent Assets Manager/Trash'}
               </code>
             </div>
           </div>
@@ -141,11 +188,15 @@ export default function SettingsPage() {
         </div>
 
         <div className="flex justify-end gap-3">
-          <button className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors">
+          <button
+            onClick={handleReset}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+          >
             重置
           </button>
           <button
             onClick={handleSave}
+            disabled={saving}
             className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 transition-colors flex items-center gap-2"
           >
             {saved ? (
@@ -156,7 +207,7 @@ export default function SettingsPage() {
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                保存设置
+                {saving ? '保存中...' : '保存设置'}
               </>
             )}
           </button>

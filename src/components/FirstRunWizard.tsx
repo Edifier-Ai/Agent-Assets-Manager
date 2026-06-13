@@ -4,8 +4,8 @@ import {
   ScanLine, CheckCircle2, Loader2, ArrowRight, ArrowLeft,
   Layers, Box, AlertTriangle, Copy
 } from 'lucide-react';
-import { defaultScanSteps } from '../data/mockData';
-import type { ScanStep } from '../types';
+import * as api from '../api';
+import type { ScanRun } from '../types';
 
 interface FirstRunWizardProps {
   onComplete: () => void;
@@ -14,8 +14,9 @@ interface FirstRunWizardProps {
 export default function FirstRunWizard({ onComplete }: FirstRunWizardProps) {
   const [step, setStep] = useState(0);
   const [scanning, setScanning] = useState(false);
-  const [scanSteps, setScanSteps] = useState<ScanStep[]>(defaultScanSteps);
   const [completed, setCompleted] = useState(false);
+  const [scanRun, setScanRun] = useState<ScanRun | null>(null);
+  const [error, setError] = useState('');
 
   const steps = [
     { title: '欢迎', description: 'Agent Assets Manager 将帮助你发现和管理本地 AI Agent 资产。' },
@@ -23,40 +24,28 @@ export default function FirstRunWizard({ onComplete }: FirstRunWizardProps) {
     { title: '首次扫描', description: '开始扫描你的 Mac 以发现已安装的 Agent 平台和相关资产。' },
   ];
 
-  const startScan = () => {
+  const startScan = async () => {
     setScanning(true);
-    setScanSteps(defaultScanSteps.map(s => ({ ...s, status: 'pending' as const })));
+    setCompleted(false);
+    setError('');
+    setScanRun(null);
 
-    const stepDelays = [500, 1500, 3000, 4500, 6000, 7500];
-    stepDelays.forEach((delay, i) => {
-      setTimeout(() => {
-        setScanSteps(prev => prev.map((s, idx) =>
-          idx === i ? { ...s, status: 'running' as const } :
-          idx < i ? { ...s, status: 'completed' as const, detail: getStepDetail(idx) } :
-          s
-        ));
-      }, delay);
-      setTimeout(() => {
-        setScanSteps(prev => prev.map((s, idx) =>
-          idx === i ? { ...s, status: 'completed' as const, detail: getStepDetail(i) } : s
-        ));
-      }, delay + 1000);
-    });
-
-    setTimeout(() => {
-      setScanning(false);
+    try {
+      await api.scanAssets();
+      const runs = await api.getScanRuns();
+      setScanRun(runs[0] || null);
       setCompleted(true);
-    }, 9000);
+    } catch (scanError) {
+      console.error('Initial scan failed:', scanError);
+      setError(scanError instanceof Error ? scanError.message : '扫描失败，请稍后重试。');
+    } finally {
+      setScanning(false);
+    }
   };
 
-  const getStepDetail = (i: number) => {
-    const details = ['发现 5 个平台', '扫描 128 个资产', '解析 128 个资产', '发现 9 个重复项', '14 个需要检查', '索引已更新'];
-    return details[i];
-  };
-
-  const handleNext = () => {
+  const handleNext = async () => {
     if (step === 2) {
-      startScan();
+      await startScan();
     } else {
       setStep(step + 1);
     }
@@ -101,21 +90,21 @@ export default function FirstRunWizard({ onComplete }: FirstRunWizardProps) {
 
             {step === 2 && scanning && (
               <div className="bg-white rounded-2xl border border-gray-100 p-6 mb-6 shadow-sm">
-                <div className="space-y-2">
-                  {scanSteps.map((s) => (
-                    <div key={s.id} className={`scan-step ${s.status}`}>
-                      <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                        {s.status === 'pending' && <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />}
-                        {s.status === 'running' && <Loader2 className="w-4 h-4 animate-spin text-blue-600" />}
-                        {s.status === 'completed' && <CheckCircle2 className="w-4 h-4 text-green-600" />}
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">{s.title}</div>
-                        {s.detail && <div className="text-xs mt-0.5 text-green-600">{s.detail}</div>}
-                      </div>
+                <div className="flex items-start gap-3">
+                  <Loader2 className="w-4 h-4 mt-0.5 animate-spin text-blue-600" />
+                  <div>
+                    <div className="font-medium text-sm text-gray-900">正在执行真实扫描</div>
+                    <div className="text-xs mt-1 text-gray-500">
+                      后端会将本次 scan run 与 scan steps 写入 SQLite，完成后这里会显示真实结果。
                     </div>
-                  ))}
+                  </div>
                 </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="bg-red-50 rounded-2xl border border-red-100 p-4 mb-6 text-sm text-red-700">
+                {error}
               </div>
             )}
 
@@ -135,30 +124,49 @@ export default function FirstRunWizard({ onComplete }: FirstRunWizardProps) {
                       <Layers className="w-3.5 h-3.5" />
                       <span className="text-xs">平台</span>
                     </div>
-                    <div className="text-lg font-bold text-gray-900">5</div>
+                    <div className="text-lg font-bold text-gray-900">{scanRun?.platformsFound ?? 0}</div>
                   </div>
                   <div className="p-3 rounded-xl bg-white">
                     <div className="flex items-center gap-2 text-gray-500 mb-1">
                       <Box className="w-3.5 h-3.5" />
                       <span className="text-xs">资产</span>
                     </div>
-                    <div className="text-lg font-bold text-gray-900">128</div>
+                    <div className="text-lg font-bold text-gray-900">{scanRun?.assetsFound ?? 0}</div>
                   </div>
                   <div className="p-3 rounded-xl bg-white">
                     <div className="flex items-center gap-2 text-gray-500 mb-1">
                       <Copy className="w-3.5 h-3.5" />
                       <span className="text-xs">重复</span>
                     </div>
-                    <div className="text-lg font-bold text-gray-900">9</div>
+                    <div className="text-lg font-bold text-gray-900">{scanRun?.duplicatesFound ?? 0}</div>
                   </div>
                   <div className="p-3 rounded-xl bg-white">
                     <div className="flex items-center gap-2 text-gray-500 mb-1">
                       <AlertTriangle className="w-3.5 h-3.5" />
                       <span className="text-xs">需要检查</span>
                     </div>
-                    <div className="text-lg font-bold text-gray-900">14</div>
+                    <div className="text-lg font-bold text-gray-900">{scanRun?.warningsFound ?? 0}</div>
                   </div>
                 </div>
+                {!!scanRun?.steps.length && (
+                  <div className="mt-4 space-y-2">
+                    {scanRun.steps.map((currentStep) => (
+                      <div key={currentStep.id} className={`scan-step ${currentStep.status}`}>
+                        <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                          {currentStep.status === 'completed' ? (
+                            <CheckCircle2 className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <Loader2 className="w-4 h-4 text-gray-300" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{currentStep.title}</div>
+                          {currentStep.detail && <div className="text-xs mt-0.5 text-green-600">{currentStep.detail}</div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </motion.div>
             )}
           </motion.div>

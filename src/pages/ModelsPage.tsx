@@ -1,13 +1,133 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Brain, Key, Shield, AlertTriangle, CheckCircle
 } from 'lucide-react';
 
-import { modelBindings, modelProfiles } from '../data/mockData';
+import PreviewModal from '../components/PreviewModal';
+import { useToast } from '../components/Toast';
+import * as api from '../api';
 import { formatDate, maskApiKey, getKeyStorageLabel, getValidationStatusLabel, getValidationStatusColor } from '../utils';
+import type { ModelBinding, ModelProfile, OperationPreview, OperationRequest, Platform } from '../types';
 
-export default function ModelsPage() {
+interface ModelsPageProps {
+  platforms: Platform[];
+  modelBindings: ModelBinding[];
+  onRefresh?: () => Promise<void>;
+}
+
+function supportsApplyPreview(platform?: Platform): boolean {
+  return Boolean(platform && platform.writable !== 'readonly');
+}
+
+function getApplySupportLabel(platform?: Platform): string {
+  if (!platform) {
+    return '平台信息缺失';
+  }
+
+  if (platform.writable === 'readonly') {
+    return '当前平台只读';
+  }
+
+  if (platform.writable === 'partial') {
+    return '支持受控写入预览';
+  }
+
+  return '支持应用预览';
+}
+
+export default function ModelsPage({ platforms, modelBindings, onRefresh }: ModelsPageProps) {
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
+  const [profiles, setProfiles] = useState<ModelProfile[]>([]);
+  const [loadingProfiles, setLoadingProfiles] = useState(true);
+  const [profilesError, setProfilesError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<OperationPreview | null>(null);
+  const [previewRequest, setPreviewRequest] = useState<OperationRequest | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const { showToast } = useToast();
+
+  const platformById = useMemo(
+    () => new Map(platforms.map((platform) => [platform.id, platform])),
+    [platforms],
+  );
+
+  useEffect(() => {
+    let active = true;
+
+    setLoadingProfiles(true);
+    api.getModelProfiles()
+      .then((rows) => {
+        if (!active) {
+          return;
+        }
+        setProfiles(rows);
+        setProfilesError(null);
+      })
+      .catch((error) => {
+        if (!active) {
+          return;
+        }
+        setProfiles([]);
+        setProfilesError(error instanceof Error ? error.message : '加载模型 Profiles 失败');
+      })
+      .finally(() => {
+        if (active) {
+          setLoadingProfiles(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const handlePreviewApply = async (profile: ModelProfile, binding: ModelBinding) => {
+    const actionKey = `${profile.id}:${binding.id}`;
+    setBusyKey(actionKey);
+
+    try {
+      const request: OperationRequest = {
+        operationType: 'apply-model-profile',
+        targetId: profile.id,
+        targetName: profile.name,
+        targetType: 'Model Profile',
+        targetPath: binding.configPath,
+        official: false,
+        riskLevel: 'medium',
+        platformId: binding.platformId,
+      };
+      const nextPreview = await api.previewOperation(request);
+      setPreviewRequest(request);
+      setPreview(nextPreview);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '无法生成模型应用预览';
+      showToast(message, 'error');
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const handleExecuteApply = async () => {
+    if (!previewRequest) {
+      return;
+    }
+
+    const actionKey = `${previewRequest.targetId ?? 'profile'}:${previewRequest.platformId ?? 'platform'}`;
+    setBusyKey(actionKey);
+    try {
+      const result = await api.executeOperation(previewRequest);
+      showToast(result.message, 'success');
+      setPreview(null);
+      setPreviewRequest(null);
+      if (onRefresh) {
+        await onRefresh();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '应用模型配置失败';
+      showToast(message, 'error');
+    } finally {
+      setBusyKey(null);
+    }
+  };
 
   return (
     <div className="flex h-full">
@@ -81,7 +201,22 @@ export default function ModelsPage() {
             <h3 className="font-semibold text-gray-900">模型 Profiles</h3>
           </div>
           <div className="p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {modelProfiles.map((profile) => (
+            {loadingProfiles && (
+              <div className="col-span-full p-6 rounded-xl border border-dashed border-gray-200 text-sm text-gray-500">
+                正在从 SQLite 加载模型 Profiles...
+              </div>
+            )}
+            {!loadingProfiles && profilesError && (
+              <div className="col-span-full p-6 rounded-xl border border-red-100 bg-red-50 text-sm text-red-600">
+                {profilesError}
+              </div>
+            )}
+            {!loadingProfiles && !profilesError && profiles.length === 0 && (
+              <div className="col-span-full p-6 rounded-xl border border-dashed border-gray-200 text-sm text-gray-500">
+                当前没有已持久化的模型 Profile。
+              </div>
+            )}
+            {!loadingProfiles && !profilesError && profiles.map((profile) => (
               <div
                 key={profile.id}
                 onClick={() => setSelectedProfile(selectedProfile === profile.id ? null : profile.id)}
@@ -113,13 +248,49 @@ export default function ModelsPage() {
                 {selectedProfile === profile.id && (
                   <div className="mt-3 pt-3 border-t border-gray-200">
                     <p className="text-xs text-gray-500">{profile.notes}</p>
-                    <div className="mt-2 flex gap-2">
-                      <button className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
-                        查看详情
-                      </button>
-                      <button className="flex-1 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors">
-                        应用配置
-                      </button>
+                    <div className="mt-3 space-y-2">
+                      {modelBindings.length === 0 && (
+                        <div className="rounded-lg border border-dashed border-gray-200 px-3 py-2 text-xs text-gray-500">
+                          当前没有检测到可应用的模型配置目标。
+                        </div>
+                      )}
+                      {modelBindings.map((binding) => {
+                        const platform = platformById.get(binding.platformId);
+                        const actionKey = `${profile.id}:${binding.id}`;
+                        const supported = supportsApplyPreview(platform);
+
+                        return (
+                          <div
+                            key={binding.id}
+                            className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <div className="text-xs font-medium text-gray-900">{binding.platformName}</div>
+                                <div className="mt-1 text-[11px] text-gray-500">
+                                  当前模型：{binding.detectedModelId}
+                                </div>
+                                <code className="mt-1 block text-[11px] text-gray-500 break-all">
+                                  {binding.configPath}
+                                </code>
+                              </div>
+                              <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] ${supported ? 'bg-blue-50 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
+                                {getApplySupportLabel(platform)}
+                              </span>
+                            </div>
+                            <button
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handlePreviewApply(profile, binding);
+                              }}
+                              disabled={busyKey === actionKey}
+                              className={`mt-3 w-full rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${supported ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                            >
+                              {busyKey === actionKey ? '正在生成预览...' : supported ? '预览应用配置' : '查看写入限制'}
+                            </button>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
                 )}
@@ -151,6 +322,17 @@ export default function ModelsPage() {
           </div>
         </div>
       </div>
+
+      {preview && (
+        <PreviewModal
+          preview={preview}
+          onConfirm={preview.supported ? () => { void handleExecuteApply(); } : undefined}
+          onClose={() => {
+            setPreview(null);
+            setPreviewRequest(null);
+          }}
+        />
+      )}
     </div>
   );
 }

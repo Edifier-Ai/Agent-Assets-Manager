@@ -3,7 +3,6 @@ import {
   Hexagon, Sun, Cloud, Feather, PawPrint, Layers, CheckCircle, Eye, Terminal
 } from 'lucide-react';
 import Badge from '../components/Badge';
-import { platforms } from '../data/mockData';
 import type { Platform } from '../types';
 
 const platformIcons: Record<string, React.ElementType> = {
@@ -14,8 +13,12 @@ const platformIcons: Record<string, React.ElementType> = {
   openclaw: PawPrint,
 };
 
-export default function PlatformsPage() {
-  const [selected, setSelected] = useState<Platform>(platforms[0]);
+interface PlatformsPageProps {
+  platforms: Platform[];
+}
+
+export default function PlatformsPage({ platforms }: PlatformsPageProps) {
+  const [selected, setSelected] = useState<Platform | null>(platforms[0] || null);
 
   return (
     <div className="flex h-full">

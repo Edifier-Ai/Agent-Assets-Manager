@@ -1,53 +1,76 @@
 import { useToast } from '../components/Toast';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ScanLine, RotateCw, FolderSearch, CheckCircle2, Loader2, Clock, Ban
 } from 'lucide-react';
-import { defaultScanSteps, lastScanRun } from '../data/mockData';
-import type { ScanStep, ScanRun } from '../types';
+import * as api from '../api';
+import type { ScanRun } from '../types';
 
-export default function ScanPage() {
+interface ScanPageProps {
+  scanRuns: ScanRun[];
+  onRefresh: () => Promise<void>;
+}
+
+function formatScanTime(value: string): string {
+  return new Date(value).toLocaleString('zh-CN', {
+    hour12: false,
+  });
+}
+
+function renderStatus(status: ScanRun['status']) {
+  if (status === 'completed') {
+    return (
+      <span className="flex items-center gap-1.5 text-green-600">
+        <CheckCircle2 className="w-3.5 h-3.5" />完成
+      </span>
+    );
+  }
+
+  if (status === 'running') {
+    return (
+      <span className="flex items-center gap-1.5 text-blue-600">
+        <Loader2 className="w-3.5 h-3.5 animate-spin" />进行中
+      </span>
+    );
+  }
+
+  return <span className="text-red-600">失败</span>;
+}
+
+export default function ScanPage({ scanRuns, onRefresh }: ScanPageProps) {
   const [isScanning, setIsScanning] = useState(false);
-  const [scanRun, setScanRun] = useState<ScanRun>(lastScanRun);
-  const [steps, setSteps] = useState<ScanStep[]>(defaultScanSteps);
+  const [scanRun, setScanRun] = useState<ScanRun | null>(scanRuns[0] || null);
   const [showHistory, setShowHistory] = useState(false);
   const { showToast } = useToast();
 
-  const startScan = () => {
+  useEffect(() => {
+    setScanRun(scanRuns[0] || null);
+  }, [scanRuns]);
+
+  const startScan = async () => {
     setIsScanning(true);
-    setSteps(defaultScanSteps.map(s => ({ ...s, status: 'pending' as const })));
+    try {
+      await api.scanAssets();
+      const latestRuns = await api.getScanRuns();
+      const latestRun = latestRuns[0] || null;
+      setScanRun(latestRun);
+      await onRefresh();
 
-    const stepDelays = [500, 1500, 3000, 4500, 6000, 7500];
-    stepDelays.forEach((delay, i) => {
-      setTimeout(() => {
-        setSteps(prev => prev.map((s, idx) =>
-          idx === i ? { ...s, status: 'running' as const } :
-          idx < i ? { ...s, status: 'completed' as const, detail: getStepDetail(idx) } :
-          s
-        ));
-      }, delay);
-      setTimeout(() => {
-        setSteps(prev => prev.map((s, idx) =>
-          idx === i ? { ...s, status: 'completed' as const, detail: getStepDetail(i) } : s
-        ));
-      }, delay + 1000);
-    });
-
-    setTimeout(() => {
+      if (latestRun) {
+        showToast(
+          `扫描完成：发现 ${latestRun.platformsFound} 个平台，${latestRun.assetsFound} 个资产`,
+          'success',
+        );
+      } else {
+        showToast('扫描完成，但未读取到最新扫描记录', 'success');
+      }
+    } catch (error) {
+      console.error('Scan failed:', error);
+      showToast(error instanceof Error ? error.message : '扫描失败，请稍后重试。', 'error');
+    } finally {
       setIsScanning(false);
-      setScanRun({
-        ...lastScanRun,
-        startedAt: new Date().toISOString(),
-        completedAt: new Date().toISOString(),
-      });
-      showToast('扫描完成：发现 5 个平台，128 个资产', 'success');
-    }, 9000);
-  };
-
-  const getStepDetail = (i: number) => {
-    const details = ['发现 5 个平台', '扫描 128 个资产', '解析 128 个资产', '发现 9 个重复项', '14 个需要检查', '索引已更新'];
-    return details[i];
+    }
   };
 
   return (
@@ -97,41 +120,19 @@ export default function ScanPage() {
               <div className="px-5 py-4 border-b border-gray-100">
                 <div className="flex items-center gap-2">
                   <ScanLine className="w-4 h-4 text-blue-600 animate-pulse" />
-                  <h3 className="font-semibold text-gray-900">正在扫描...</h3>
+                  <h3 className="font-semibold text-gray-900">正在执行真实扫描...</h3>
                 </div>
               </div>
-              <div className="p-5 space-y-2">
-                {steps.map((step) => (
-                  <div
-                    key={step.id}
-                    className={`scan-step ${step.status}`}
-                  >
-                    <div className="w-6 h-6 flex items-center justify-center shrink-0">
-                      {step.status === 'pending' && (
-                        <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
-                      )}
-                      {step.status === 'running' && (
-                        <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-                      )}
-                      {step.status === 'completed' && (
-                        <CheckCircle2 className="w-4 h-4 text-green-600" />
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">{step.title}</div>
-                      <div className="text-xs mt-0.5">{step.description}</div>
-                      {step.detail && (
-                        <div className="text-xs mt-1 text-green-600">{step.detail}</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+              <div className="p-5">
+                <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 text-sm text-blue-900">
+                  扫描结果将由后端写入 SQLite；完成后，下方“上次扫描结果”和“扫描历史”会显示最新的真实 scan run 与 scan steps。
+                </div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {!isScanning && (
+        {!isScanning && scanRun && (
           <div className="section-card">
             <div className="px-5 py-4 border-b border-gray-100">
               <h3 className="font-semibold text-gray-900">上次扫描结果</h3>
@@ -154,6 +155,35 @@ export default function ScanPage() {
                 <div className="text-xs text-gray-500 mt-1">需要检查</div>
               </div>
             </div>
+            {!!scanRun.steps.length && (
+              <div className="px-5 pb-5 space-y-2">
+                {scanRun.steps.map((step) => (
+                  <div key={step.id} className={`scan-step ${step.status}`}>
+                    <div className="w-6 h-6 flex items-center justify-center shrink-0">
+                      {step.status === 'completed' ? (
+                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                      ) : step.status === 'running' ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                      ) : (
+                        <div className="w-2.5 h-2.5 rounded-full bg-gray-300" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-medium text-sm">{step.title}</div>
+                      <div className="text-xs mt-0.5 text-gray-500">{step.description}</div>
+                      {step.detail && <div className="text-xs mt-1 text-green-600">{step.detail}</div>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isScanning && !scanRun && (
+          <div className="section-card p-8 text-center text-gray-400">
+            <ScanLine className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+            <p className="text-sm">暂无扫描记录。点击「重新扫描」开始检测。</p>
           </div>
         )}
 
@@ -224,30 +254,25 @@ export default function ScanPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-t border-gray-50">
-                      <td className="px-5 py-3 text-gray-600">2024-06-12 14:32</td>
-                      <td className="px-5 py-3">
-                        <span className="flex items-center gap-1.5 text-green-600">
-                          <CheckCircle2 className="w-3.5 h-3.5" />完成
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-gray-600">5</td>
-                      <td className="px-5 py-3 text-gray-600">128</td>
-                      <td className="px-5 py-3 text-gray-600">9</td>
-                      <td className="px-5 py-3 text-gray-600">14</td>
-                    </tr>
-                    <tr className="border-t border-gray-50">
-                      <td className="px-5 py-3 text-gray-600">2024-06-11 10:15</td>
-                      <td className="px-5 py-3">
-                        <span className="flex items-center gap-1.5 text-green-600">
-                          <CheckCircle2 className="w-3.5 h-3.5" />完成
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-gray-600">5</td>
-                      <td className="px-5 py-3 text-gray-600">126</td>
-                      <td className="px-5 py-3 text-gray-600">8</td>
-                      <td className="px-5 py-3 text-gray-600">12</td>
-                    </tr>
+                    {scanRuns.map((run) => (
+                      <tr key={run.id} className="border-t border-gray-50">
+                        <td className="px-5 py-3 text-gray-600">
+                          {formatScanTime(run.completedAt || run.startedAt)}
+                        </td>
+                        <td className="px-5 py-3">{renderStatus(run.status)}</td>
+                        <td className="px-5 py-3 text-gray-600">{run.platformsFound}</td>
+                        <td className="px-5 py-3 text-gray-600">{run.assetsFound}</td>
+                        <td className="px-5 py-3 text-gray-600">{run.duplicatesFound}</td>
+                        <td className="px-5 py-3 text-gray-600">{run.warningsFound}</td>
+                      </tr>
+                    ))}
+                    {!scanRuns.length && (
+                      <tr className="border-t border-gray-50">
+                        <td colSpan={6} className="px-5 py-6 text-center text-gray-400">
+                          暂无持久化扫描历史
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>

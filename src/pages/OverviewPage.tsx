@@ -6,10 +6,13 @@ import {
 } from 'lucide-react';
 import KpiCard from '../components/KpiCard';
 import Badge from '../components/Badge';
-import { platforms, assets, findings, modelBindings } from '../data/mockData';
-import type { Platform } from '../types';
+import type { Platform, Asset, Finding, ModelBinding } from '../types';
 
 interface OverviewPageProps {
+  platforms: Platform[];
+  assets: Asset[];
+  findings: Finding[];
+  modelBindings: ModelBinding[];
   onSelectPlatform: (p: Platform) => void;
 }
 
@@ -21,13 +24,13 @@ const platformIcons: Record<string, React.ElementType> = {
   openclaw: PawPrint,
 };
 
-export default function OverviewPage({ onSelectPlatform }: OverviewPageProps) {
+export default function OverviewPage({ platforms, assets, findings, modelBindings, onSelectPlatform }: OverviewPageProps) {
   const [selectedFinding, setSelectedFinding] = useState<string | null>(null);
 
   const totalAssets = assets.length;
   const needsReview = findings.filter(f => f.riskLevel === 'high').length;
   const duplicates = assets.filter(a => a.status.includes('duplicate')).length;
-  const modelWarnings = modelBindings.filter(m => m.warnings.length > 0).length;
+  const modelWarnings = modelBindings.filter(m => m.warnings && m.warnings.length > 0).length;
 
   return (
     <div className="flex h-full">
@@ -112,6 +115,11 @@ export default function OverviewPage({ onSelectPlatform }: OverviewPageProps) {
                 </tbody>
               </table>
             </div>
+            {platforms.length === 0 && (
+              <div className="p-6 text-center text-sm text-gray-400">
+                暂无已安装平台。点击「重新扫描」开始检测。
+              </div>
+            )}
             <div className="px-5 py-3 border-t border-gray-100">
               <button className="text-sm text-blue-600 font-medium hover:text-blue-700 flex items-center gap-1 transition-colors">
                 查看所有平台 <ChevronRight className="w-3.5 h-3.5" />
@@ -166,6 +174,11 @@ export default function OverviewPage({ onSelectPlatform }: OverviewPageProps) {
                 </tbody>
               </table>
             </div>
+            {findings.length === 0 && (
+              <div className="p-6 text-center text-sm text-gray-400">
+                暂无需要检查的资产
+              </div>
+            )}
             <div className="px-5 py-3 border-t border-gray-100">
               <button className="text-sm text-blue-600 font-medium hover:text-blue-700 flex items-center gap-1 transition-colors">
                 查看所有需要检查 <ChevronRight className="w-3.5 h-3.5" />
@@ -201,7 +214,7 @@ export default function OverviewPage({ onSelectPlatform }: OverviewPageProps) {
                       <Badge status={mb.validationStatus === 'ok' ? 'enabled' : 'needs-review'} />
                     </td>
                     <td className="px-5 py-3">
-                      {mb.warnings.length > 0 ? (
+                      {mb.warnings && mb.warnings.length > 0 ? (
                         <span className="text-amber-600 font-medium">{mb.warnings.length}</span>
                       ) : (
                         <span className="text-gray-400">0</span>
@@ -212,6 +225,11 @@ export default function OverviewPage({ onSelectPlatform }: OverviewPageProps) {
               </tbody>
             </table>
           </div>
+          {modelBindings.length === 0 && (
+            <div className="p-6 text-center text-sm text-gray-400">
+              暂无模型配置。扫描后将自动检测。
+            </div>
+          )}
           <div className="px-5 py-3 border-t border-gray-100">
             <button className="text-sm text-blue-600 font-medium hover:text-blue-700 flex items-center gap-1 transition-colors">
               管理模型 <ChevronRight className="w-3.5 h-3.5" />

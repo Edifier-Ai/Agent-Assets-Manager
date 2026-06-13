@@ -6,13 +6,49 @@ authors = ["you"]
 edition = "2021"
 
 [build-dependencies]
-tauri-build = { version = "2.0.0", features = [] }
+tauri-build = { version = "2.6.2", features = [] }
 
 [dependencies]
-tauri = { version = "2.0.0", features = [] }
-tauri-plugin-shell = "2.0.0"
+tauri = { version = "2.11.2", features = [] }
+tauri-plugin-shell = "2.3.5"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# Pin time crate to avoid conflict with newer Rust versions
+time = "=0.3.40"
+
+# Database
+rusqlite = { version = "0.31", features = ["bundled", "chrono"] }
+
+# File scanning
+walkdir = "2"
+
+# Hashing
+sha2 = "0.10"
+hex = "0.4"
+
+# Parsing
+regex = "1"
+toml = "0.8"
+serde_yaml = "0.9"
+
+# Paths & system
+dirs = "5"
+which = "6"
+
+# Date & time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Error handling
+thiserror = "1"
+anyhow = "1"
+
+# Logging
+log = "0.4"
+env_logger = "0.11"
+
+# Async (not needed for MVP, kept for future)
+tokio = { version = "1", features = ["full"] }
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

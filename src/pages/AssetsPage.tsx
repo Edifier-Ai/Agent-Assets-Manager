@@ -5,16 +5,24 @@ import {
 } from 'lucide-react';
 import Badge from '../components/Badge';
 import PreviewModal from '../components/PreviewModal';
-import { assets } from '../data/mockData';
+import * as api from '../api';
 import { formatDate, getAssetTypeLabel } from '../utils';
-import type { Asset, OperationPreview } from '../types';
+import type { Asset, AssetFilterId, OperationPreview, OperationRequest } from '../types';
 
-const filters = [
+interface AssetsPageProps {
+  assets: Asset[];
+  onRefresh?: () => Promise<void>;
+}
+
+export const assetFilters: Array<{ id: AssetFilterId; label: string }> = [
   { id: 'all', label: '全部' },
   { id: 'Skill', label: 'Skills' },
   { id: 'Agent', label: 'Agents' },
   { id: 'Command', label: 'Commands' },
   { id: 'MCP Server', label: 'MCP' },
+  { id: 'Rule', label: 'Rules' },
+  { id: 'Memory', label: 'Memories' },
+  { id: 'Persona', label: 'Personas' },
   { id: 'Model Config', label: 'Models' },
   { id: 'needs-review', label: '需要检查' },
   { id: 'duplicate', label: '重复项' },
@@ -23,43 +31,87 @@ const filters = [
   { id: 'project-local', label: '项目本地' },
 ];
 
+export function matchesAssetFilter(asset: Asset, activeFilter: AssetFilterId): boolean {
+  if (activeFilter === 'all') return true;
+  if (activeFilter === 'needs-review') return asset.status.includes('needs-review');
+  if (activeFilter === 'duplicate') return asset.status.includes('duplicate');
+  if (activeFilter === 'conflict') return asset.status.includes('conflict');
+  if (activeFilter === 'high') return asset.riskLevel === 'high';
+  if (activeFilter === 'project-local') return asset.status.includes('project-local');
+  return asset.type === activeFilter;
+}
+
 import { useToast } from '../components/Toast';
 
-export default function AssetsPage() {
-  const [activeFilter, setActiveFilter] = useState('all');
+export default function AssetsPage({ assets, onRefresh }: AssetsPageProps) {
+  const [activeFilter, setActiveFilter] = useState<AssetFilterId>('all');
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [preview, setPreview] = useState<OperationPreview | null>(null);
+  const [previewRequest, setPreviewRequest] = useState<OperationRequest | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
   const { showToast } = useToast();
 
-  const filteredAssets = useMemo(() => {
-    if (activeFilter === 'all') return assets;
-    if (activeFilter === 'needs-review') return assets.filter(a => a.status.includes('needs-review'));
-    if (activeFilter === 'duplicate') return assets.filter(a => a.status.includes('duplicate'));
-    if (activeFilter === 'conflict') return assets.filter(a => a.status.includes('conflict'));
-    if (activeFilter === 'high') return assets.filter(a => a.riskLevel === 'high');
-    if (activeFilter === 'project-local') return assets.filter(a => a.status.includes('project-local'));
-    return assets.filter(a => a.type === activeFilter);
-  }, [activeFilter]);
+  const filteredAssets = useMemo(
+    () => assets.filter((asset) => matchesAssetFilter(asset, activeFilter)),
+    [activeFilter, assets],
+  );
 
-  const showPreview = (asset: Asset, operation: string) => {
-    const isSupported = asset.installations.some(i => i.platformName === 'OpenCode' || i.platformName === 'OpenClaw');
-    setPreview({
+  const buildOperationRequest = (asset: Asset, operation: string): OperationRequest | null => {
+    const installation = asset.installations[0];
+    if (!installation) {
+      showToast(`资产 ${asset.name} 没有可操作的安装路径`, 'error');
+      return null;
+    }
+
+    return {
       operationType: operation,
+      targetId: asset.id,
       targetName: asset.name,
       targetType: asset.type,
-      modifiedFiles: asset.installations.map(i => i.path),
-      writtenKeys: operation === 'disable' ? ['enabled'] : operation === 'delete' ? [] : ['config'],
-      needsBackup: true,
-      needsRestart: false,
-      risks: asset.riskLevel === 'high' ? ['资产标记为高风险，包含可执行脚本'] : [],
-      supported: isSupported,
-    });
+      targetPath: installation.path,
+      official: installation.official || asset.status.includes('official'),
+      riskLevel: asset.riskLevel,
+    };
   };
 
-  const handleConfirm = () => {
-    if (preview) {
-      showToast(`${preview.operationType === 'disable' ? '禁用' : '移入回收站'}操作已执行：${preview.targetName}`, 'success');
+  const showPreview = async (asset: Asset, operation: string) => {
+    const request = buildOperationRequest(asset, operation);
+    if (!request) {
+      return;
+    }
+
+    const actionKey = `${operation}:${asset.id}`;
+    setBusyKey(actionKey);
+    try {
+      const nextPreview = await api.previewOperation(request);
+      setPreviewRequest(request);
+      setPreview(nextPreview);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '无法生成操作预览';
+      showToast(message, 'error');
+    } finally {
+      setBusyKey(null);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!previewRequest || !preview) {
+      return;
+    }
+
+    const actionKey = `confirm:${previewRequest.operationType}:${previewRequest.targetId ?? previewRequest.targetPath}`;
+    setBusyKey(actionKey);
+    try {
+      const result = await api.executeOperation(previewRequest);
+      showToast(result.message, 'success');
       setPreview(null);
+      setPreviewRequest(null);
+      await onRefresh?.();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '执行操作失败';
+      showToast(message, 'error');
+    } finally {
+      setBusyKey(null);
     }
   };
 
@@ -68,7 +120,7 @@ export default function AssetsPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="px-5 pt-5 pb-3">
           <div className="flex items-center gap-2 flex-wrap">
-            {filters.map((f) => (
+            {assetFilters.map((f) => (
               <button
                 key={f.id}
                 onClick={() => setActiveFilter(f.id)}
@@ -135,14 +187,16 @@ export default function AssetsPage() {
                       <td className="px-5 py-3">
                         <div className="flex items-center gap-1">
                           <button
-                            onClick={(e) => { e.stopPropagation(); showPreview(asset, 'disable'); }}
+                            onClick={(e) => { e.stopPropagation(); void showPreview(asset, 'disable'); }}
+                            disabled={busyKey === `disable:${asset.id}`}
                             className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
                             title="禁用"
                           >
                             <Ban className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={(e) => { e.stopPropagation(); showPreview(asset, 'delete'); }}
+                            onClick={(e) => { e.stopPropagation(); void showPreview(asset, 'delete'); }}
+                            disabled={busyKey === `delete:${asset.id}`}
                             className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
                             title="移入回收站"
                           >
@@ -222,14 +276,14 @@ export default function AssetsPage() {
             </div>
             <div className="pt-3 border-t border-gray-100 flex gap-2">
               <button
-                onClick={() => showPreview(selectedAsset, 'disable')}
+                onClick={() => { void showPreview(selectedAsset, 'disable'); }}
                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors"
               >
                 <Ban className="w-3.5 h-3.5" />
                 禁用
               </button>
               <button
-                onClick={() => showPreview(selectedAsset, 'delete')}
+                onClick={() => { void showPreview(selectedAsset, 'delete'); }}
                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -243,8 +297,11 @@ export default function AssetsPage() {
       {preview && (
         <PreviewModal
           preview={preview}
-          onClose={() => setPreview(null)}
-          onConfirm={handleConfirm}
+          onClose={() => {
+            setPreview(null);
+            setPreviewRequest(null);
+          }}
+          onConfirm={() => { void handleConfirm(); }}
         />
       )}
     </div>

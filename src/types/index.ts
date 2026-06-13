@@ -2,6 +2,8 @@ export type NavPage = 'overview' | 'assets' | 'platforms' | 'models' | 'scan' | 
 
 export type AssetType = 'Skill' | 'Agent' | 'Command' | 'MCP Server' | 'Tool' | 'Rule' | 'Memory' | 'Persona' | 'Provider Config' | 'Model Config' | 'CLI Runtime';
 
+export type AssetFilterId = 'all' | AssetType | 'needs-review' | 'duplicate' | 'conflict' | 'high' | 'project-local';
+
 export type RiskLevel = 'low' | 'medium' | 'high';
 
 export type AssetStatus = 'installed' | 'enabled' | 'disabled' | 'official' | 'user-installed' | 'project-local' | 'duplicate' | 'conflict' | 'broken' | 'needs-review';
@@ -85,9 +87,11 @@ export interface ModelProfile {
   provider: string;
   modelId: string;
   baseUrl: string;
-  keyStorage: string;
+  keyStorage: KeyStorage;
   envKeyNames: string[];
   notes: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Backup {
@@ -100,16 +104,42 @@ export interface Backup {
   createdAt: string;
 }
 
-export interface OperationPreview {
+export interface OperationRequest {
   operationType: string;
+  targetId?: string;
   targetName: string;
   targetType: string;
-  modifiedFiles: string[];
+  targetPath: string;
+  sourcePath?: string;
+  official: boolean;
+  riskLevel?: RiskLevel;
+  platformId?: string;
+}
+
+export interface OperationPreview {
+  operationType: string;
+  targetId?: string;
+  targetName: string;
+  targetType: string;
+  targetPath: string;
+  sourcePath?: string;
+  filesToModify: string[];
+  filesToMove: string[];
+  backupPaths: string[];
   writtenKeys: string[];
-  needsBackup: boolean;
   needsRestart: boolean;
   risks: string[];
   supported: boolean;
+}
+
+export interface OperationExecutionResult {
+  operationId: string;
+  operationType: string;
+  targetId?: string;
+  targetPath: string;
+  outcomePath?: string;
+  backupId?: string;
+  message: string;
 }
 
 export interface ScanStep {
@@ -133,6 +163,13 @@ export interface ScanRun {
   steps: ScanStep[];
 }
 
+export interface ScanSummary {
+  platformsFound: number;
+  assetsFound: number;
+  duplicatesFound: number;
+  warningsFound: number;
+}
+
 export interface Finding {
   id: string;
   assetId: string;
@@ -142,4 +179,19 @@ export interface Finding {
   issue: string;
   riskLevel: RiskLevel;
   detail: string;
+}
+export interface AppSettings {
+  scanPaths: string[];
+  includeProjectLocal: boolean;
+  enableDeepScan: boolean;
+  dbLocation: string;
+  trashLocation: string;
+  theme: string;
+  securityLevel: string;
+}
+
+export interface SaveSettingsInput {
+  theme: string;
+  includeProjectLocal: boolean;
+  enableDeepScan: boolean;
 }

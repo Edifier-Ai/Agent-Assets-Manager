@@ -4,7 +4,7 @@ import type { OperationPreview } from '../types';
 interface PreviewModalProps {
   preview: OperationPreview;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm?: () => void;
 }
 
 export default function PreviewModal({ preview, onClose, onConfirm }: PreviewModalProps) {
@@ -34,15 +34,40 @@ export default function PreviewModal({ preview, onClose, onConfirm }: PreviewMod
             <span className="text-sm text-gray-500">目标对象</span>
             <span className="text-sm font-medium text-gray-900">{preview.targetName}（{preview.targetType}）</span>
           </div>
+
+          <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+            <span className="text-sm text-gray-500">目标路径</span>
+            <code className="text-xs font-mono text-gray-700">{preview.targetPath}</code>
+          </div>
+
+          {preview.sourcePath && (
+            <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50">
+              <span className="text-sm text-gray-500">来源路径</span>
+              <code className="text-xs font-mono text-gray-700">{preview.sourcePath}</code>
+            </div>
+          )}
           
-          {preview.modifiedFiles.length > 0 && (
+          {preview.filesToModify.length > 0 && (
             <div>
               <div className="text-sm text-gray-500 mb-2 flex items-center gap-1.5">
                 <FileEdit className="w-3.5 h-3.5" />
                 将修改的文件
               </div>
               <div className="space-y-1">
-                {preview.modifiedFiles.map((file, i) => (
+                {preview.filesToModify.map((file, i) => (
+                  <div key={i} className="text-sm font-mono text-gray-700 bg-gray-50 px-3 py-1.5 rounded-lg">
+                    {file}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {preview.filesToMove.length > 0 && (
+            <div>
+              <div className="text-sm text-gray-500 mb-2">将移动的文件</div>
+              <div className="space-y-1">
+                {preview.filesToMove.map((file, i) => (
                   <div key={i} className="text-sm font-mono text-gray-700 bg-gray-50 px-3 py-1.5 rounded-lg">
                     {file}
                   </div>
@@ -63,9 +88,22 @@ export default function PreviewModal({ preview, onClose, onConfirm }: PreviewMod
               </div>
             </div>
           )}
+
+          {preview.backupPaths.length > 0 && (
+            <div>
+              <div className="text-sm text-gray-500 mb-2">备份或目标目录</div>
+              <div className="space-y-1">
+                {preview.backupPaths.map((path, i) => (
+                  <div key={i} className="text-sm font-mono text-gray-700 bg-gray-50 px-3 py-1.5 rounded-lg">
+                    {path}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           
           <div className="flex items-center gap-4">
-            {preview.needsBackup && (
+            {preview.backupPaths.length > 0 && (
               <div className="flex items-center gap-1.5 text-sm text-blue-600">
                 <RotateCcw className="w-3.5 h-3.5" />
                 将创建备份
@@ -96,9 +134,9 @@ export default function PreviewModal({ preview, onClose, onConfirm }: PreviewMod
             onClick={onClose}
             className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
           >
-            取消
+            {onConfirm ? '取消' : '关闭'}
           </button>
-          {preview.supported ? (
+          {onConfirm && preview.supported ? (
             <button
               onClick={onConfirm}
               className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 transition-colors flex items-center gap-2"
@@ -106,7 +144,7 @@ export default function PreviewModal({ preview, onClose, onConfirm }: PreviewMod
               <CheckCircle className="w-4 h-4" />
               确认执行
             </button>
-          ) : (
+          ) : onConfirm ? (
             <button
               disabled
               className="px-4 py-2 rounded-lg text-sm font-medium text-gray-400 bg-gray-100 cursor-not-allowed flex items-center gap-2"
@@ -114,7 +152,7 @@ export default function PreviewModal({ preview, onClose, onConfirm }: PreviewMod
               <Ban className="w-4 h-4" />
               当前适配器暂不支持写入
             </button>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

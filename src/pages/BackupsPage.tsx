@@ -3,23 +3,74 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Archive, RotateCcw, Clock, CheckCircle2
 } from 'lucide-react';
+import PreviewModal from '../components/PreviewModal';
+import * as api from '../api';
 import { useToast } from '../components/Toast';
-import { backups } from '../data/mockData';
 import { formatDate } from '../utils';
+import type { Backup, OperationPreview, OperationRequest } from '../types';
 
-export default function BackupsPage() {
+interface BackupsPageProps {
+  backups: Backup[];
+  onRefresh?: () => Promise<void>;
+}
+
+export default function BackupsPage({ backups, onRefresh }: BackupsPageProps) {
   const [selectedBackup, setSelectedBackup] = useState<string | null>(null);
   const [restoring, setRestoring] = useState<string | null>(null);
+  const [preview, setPreview] = useState<OperationPreview | null>(null);
+  const [previewRequest, setPreviewRequest] = useState<OperationRequest | null>(null);
   const { showToast } = useToast();
 
-  const handleRestore = (id: string) => {
+  const buildRestoreRequest = (backup: Backup): OperationRequest => ({
+    operationType: 'restore',
+    targetId: backup.id,
+    targetName: backup.originalPath.split('/').filter(Boolean).pop() || backup.originalPath,
+    targetType: 'Backup',
+    targetPath: backup.originalPath,
+    sourcePath: backup.backupPath,
+    official: false,
+  });
+
+  const handleRestore = async (id: string) => {
+    const backup = backups.find((item) => item.id === id);
+    if (!backup) {
+      showToast(`未找到备份：${id}`, 'error');
+      return;
+    }
+
     setRestoring(id);
-    setTimeout(() => {
-      const backup = backups.find(b => b.id === id);
-      showToast(`已恢复备份：${backup?.originalPath || id}`, 'success');
+    try {
+      const request = buildRestoreRequest(backup);
+      const nextPreview = await api.previewOperation(request);
+      setPreviewRequest(request);
+      setPreview(nextPreview);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '无法生成恢复预览';
+      showToast(message, 'error');
+    } finally {
       setRestoring(null);
+    }
+  };
+
+  const confirmRestore = async () => {
+    if (!previewRequest) {
+      return;
+    }
+
+    setRestoring(previewRequest.targetId ?? previewRequest.targetPath);
+    try {
+      const result = await api.executeOperation(previewRequest);
+      showToast(result.message, 'success');
+      setPreview(null);
+      setPreviewRequest(null);
       setSelectedBackup(null);
-    }, 2000);
+      await onRefresh?.();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '恢复备份失败';
+      showToast(message, 'error');
+    } finally {
+      setRestoring(null);
+    }
   };
 
   return (
@@ -79,7 +130,7 @@ export default function BackupsPage() {
                         {restoring === backup.id ? (
                           <>
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            已恢复
+                            生成预览中
                           </>
                         ) : (
                           <>
@@ -137,12 +188,12 @@ export default function BackupsPage() {
                       </div>
                       <div className="pt-2">
                         <button
-                          onClick={() => handleRestore(b.id)}
+                          onClick={() => { void handleRestore(b.id); }}
                           disabled={restoring === b.id}
                           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors disabled:opacity-50"
                         >
                           <RotateCcw className="w-4 h-4" />
-                          {restoring === b.id ? '正在恢复...' : '恢复此备份'}
+                          {restoring === b.id ? '生成预览中...' : '恢复此备份'}
                         </button>
                       </div>
                     </>
@@ -152,6 +203,17 @@ export default function BackupsPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {preview && (
+          <PreviewModal
+            preview={preview}
+            onClose={() => {
+              setPreview(null);
+              setPreviewRequest(null);
+            }}
+            onConfirm={() => { void confirmRestore(); }}
+          />
+        )}
       </div>
     </div>
   );
