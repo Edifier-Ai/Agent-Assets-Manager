@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   Box, ChevronDown, Trash2, Ban, Copy
@@ -11,6 +11,7 @@ import type { Asset, AssetFilterId, OperationPreview, OperationRequest } from '.
 
 interface AssetsPageProps {
   assets: Asset[];
+  initialFilter?: AssetFilterId;
   onRefresh?: () => Promise<void>;
 }
 
@@ -43,13 +44,17 @@ export function matchesAssetFilter(asset: Asset, activeFilter: AssetFilterId): b
 
 import { useToast } from '../components/Toast';
 
-export default function AssetsPage({ assets, onRefresh }: AssetsPageProps) {
-  const [activeFilter, setActiveFilter] = useState<AssetFilterId>('all');
+export default function AssetsPage({ assets, initialFilter = 'all', onRefresh }: AssetsPageProps) {
+  const [activeFilter, setActiveFilter] = useState<AssetFilterId>(initialFilter);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [preview, setPreview] = useState<OperationPreview | null>(null);
   const [previewRequest, setPreviewRequest] = useState<OperationRequest | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const { showToast } = useToast();
+
+  useEffect(() => {
+    setActiveFilter(initialFilter);
+  }, [initialFilter]);
 
   const filteredAssets = useMemo(
     () => assets.filter((asset) => matchesAssetFilter(asset, activeFilter)),

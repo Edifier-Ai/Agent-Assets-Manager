@@ -192,6 +192,13 @@ export interface AppSettings {
 
 export interface SaveSettingsInput {
   theme: string;
+  scanPaths: string[];
   includeProjectLocal: boolean;
   enableDeepScan: boolean;
+  dbLocation: string;
+  trashLocation: string;
+}
+
+export interface ScanAssetsInput {
+  scanRoots?: string[];
 }

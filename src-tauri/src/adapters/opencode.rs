@@ -1,4 +1,7 @@
-use super::{home_root, AssetSearchSpec, ModelConfigSpec, PlatformAdapter};
+use super::{
+    home_root, AssetSearchSpec, ModelConfigSpec, PlatformAdapter, ROOT_OBJECT_MERGE_STRATEGY,
+    STANDARD_MODEL_WRITABLE_KEYS,
+};
 use crate::platform::PlatformKind;
 
 #[derive(Default)]
@@ -66,10 +69,14 @@ impl PlatformAdapter for OpenCodeAdapter {
             ModelConfigSpec {
                 filename: "config.yaml",
                 format: "yaml",
+                writable_keys: STANDARD_MODEL_WRITABLE_KEYS,
+                merge_strategy: ROOT_OBJECT_MERGE_STRATEGY,
             },
             ModelConfigSpec {
                 filename: "config.yml",
                 format: "yaml",
+                writable_keys: STANDARD_MODEL_WRITABLE_KEYS,
+                merge_strategy: ROOT_OBJECT_MERGE_STRATEGY,
             },
         ]
     }

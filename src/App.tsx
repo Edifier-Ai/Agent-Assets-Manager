@@ -12,10 +12,12 @@ import ScanPage from './pages/ScanPage';
 import BackupsPage from './pages/BackupsPage';
 import SettingsPage from './pages/SettingsPage';
 import FirstRunWizard from './components/FirstRunWizard';
-import { ToastProvider } from './components/Toast';
+import { ToastProvider, useToast } from './components/Toast';
 import * as api from './api';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 import type {
   NavPage,
+  AssetFilterId,
   Platform,
   Asset,
   ModelBinding,
@@ -36,10 +38,16 @@ const pageComponents: Record<NavPage, ComponentType<any>> = {
   settings: SettingsPage,
 };
 
-export default function App() {
+function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function AppShell() {
   const [currentPage, setCurrentPage] = useState<NavPage>('overview');
   const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(null);
+  const [assetInitialFilter, setAssetInitialFilter] = useState<AssetFilterId>('all');
   const [firstRun, setFirstRun] = useState(false);
+  const { showToast } = useToast();
 
   // Data states
   const [platforms, setPlatforms] = useState<Platform[]>([]);
@@ -51,6 +59,7 @@ export default function App() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [lastScanTime, setLastScanTime] = useState<string>('');
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -78,19 +87,24 @@ export default function App() {
 
       const hasCompletedScan = r.some((run) => run.status === 'completed');
       setFirstRun(!hasCompletedScan);
+      setLoadError(null);
     } catch (e) {
-      console.error('Failed to load data:', e);
-      setFirstRun(true);
+      const message = getErrorMessage(e, '无法加载本机资产数据');
+      setLoadError(message);
+      showToast(`加载失败：${message}`, 'error');
     }
-  }, []);
+  }, [showToast]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  const handleNavigate = useCallback((page: NavPage) => {
+  const handleNavigate = useCallback((page: NavPage, options?: { assetFilter?: AssetFilterId }) => {
     setCurrentPage(page);
     setSelectedPlatform(null);
+    if (page === 'assets') {
+      setAssetInitialFilter(options?.assetFilter ?? 'all');
+    }
   }, []);
 
   const handleSelectPlatform = useCallback((p: Platform) => {
@@ -103,11 +117,14 @@ export default function App() {
       await api.scanAssets();
       await loadData();
     } catch (e) {
-      console.error('Scan failed:', e);
+      const message = getErrorMessage(e, '扫描失败');
+      setLoadError(message);
+      showToast(`扫描失败：${message}`, 'error');
+    } finally {
+      setLoading(false);
+      setCurrentPage('scan');
     }
-    setLoading(false);
-    setCurrentPage('scan');
-  }, [loadData]);
+  }, [loadData, showToast]);
 
   const handleCloseDetail = useCallback(() => {
     setSelectedPlatform(null);
@@ -118,7 +135,9 @@ export default function App() {
     try {
       await loadData();
     } catch (e) {
-      console.error('Failed to refresh after initial scan:', e);
+      const message = getErrorMessage(e, '初次扫描后刷新失败');
+      setLoadError(message);
+      showToast(`刷新失败：${message}`, 'error');
     } finally {
       setLoading(false);
     }
@@ -130,10 +149,19 @@ export default function App() {
   }, [loadData]);
 
   const handleSaveSettings = useCallback(async (nextSettings: SaveSettingsInput) => {
-    await api.saveSettings(nextSettings);
-    const refreshed = await api.getSettings();
-    setSettings(refreshed);
-  }, []);
+    try {
+      await api.saveSettings(nextSettings);
+      const refreshed = await api.getSettings();
+      setSettings(refreshed);
+      setLoadError(null);
+      showToast('设置已保存', 'success');
+    } catch (e) {
+      const message = getErrorMessage(e, '设置保存失败');
+      setLoadError(message);
+      showToast(`保存失败：${message}`, 'error');
+      throw e;
+    }
+  }, [showToast]);
 
   const PageComponent = pageComponents[currentPage];
 
@@ -145,19 +173,45 @@ export default function App() {
     findings,
     scanRuns,
     settings: settings ?? undefined,
+    initialFilter: currentPage === 'assets' ? assetInitialFilter : undefined,
     onSelectPlatform: handleSelectPlatform,
+    onNavigate: handleNavigate,
     onRefresh: handleRefresh,
     onSaveSettings: handleSaveSettings,
   };
 
   return (
-    <ToastProvider>
+    <>
       <div className="h-screen w-screen flex flex-col bg-white rounded-xl overflow-hidden shadow-2xl">
         <WindowChrome />
         <div className="flex flex-1 overflow-hidden">
-          <Sidebar active={currentPage} onNavigate={handleNavigate} />
+          <Sidebar
+            active={currentPage}
+            onNavigate={handleNavigate}
+            latestScanRun={scanRuns[0]}
+            scanning={loading}
+          />
           <div className="flex-1 flex flex-col min-w-0">
             <StatusBar lastScanTime={lastScanTime} onRescan={handleRescan} loading={loading} />
+            {loadError && (
+              <div
+                role="alert"
+                className="mx-5 mt-4 flex items-center justify-between gap-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span className="truncate">数据加载失败：{loadError}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleRefresh}
+                  className="flex shrink-0 items-center gap-1.5 rounded-md border border-red-200 bg-white px-2.5 py-1.5 font-medium text-red-700 transition-colors hover:bg-red-100"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  重试
+                </button>
+              </div>
+            )}
             <div className="flex flex-1 overflow-hidden">
               <div className="flex-1 min-w-0 overflow-hidden">
                 <AnimatePresence mode="wait">
@@ -191,6 +245,14 @@ export default function App() {
           </motion.div>
         )}
       </AnimatePresence>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <ToastProvider>
+      <AppShell />
     </ToastProvider>
   );
 }

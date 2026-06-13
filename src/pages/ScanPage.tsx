@@ -2,13 +2,15 @@ import { useToast } from '../components/Toast';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ScanLine, RotateCw, FolderSearch, CheckCircle2, Loader2, Clock, Ban
+  ScanLine, RotateCw, FolderSearch, CheckCircle2, Loader2, Clock, Ban, X
 } from 'lucide-react';
+import { open } from '@tauri-apps/plugin-dialog';
 import * as api from '../api';
-import type { ScanRun } from '../types';
+import type { AppSettings, ScanRun } from '../types';
 
 interface ScanPageProps {
   scanRuns: ScanRun[];
+  settings?: AppSettings;
   onRefresh: () => Promise<void>;
 }
 
@@ -38,10 +40,11 @@ function renderStatus(status: ScanRun['status']) {
   return <span className="text-red-600">失败</span>;
 }
 
-export default function ScanPage({ scanRuns, onRefresh }: ScanPageProps) {
+export default function ScanPage({ scanRuns, settings, onRefresh }: ScanPageProps) {
   const [isScanning, setIsScanning] = useState(false);
   const [scanRun, setScanRun] = useState<ScanRun | null>(scanRuns[0] || null);
   const [showHistory, setShowHistory] = useState(false);
+  const [deepScanRoots, setDeepScanRoots] = useState<string[]>([]);
   const { showToast } = useToast();
 
   useEffect(() => {
@@ -51,7 +54,7 @@ export default function ScanPage({ scanRuns, onRefresh }: ScanPageProps) {
   const startScan = async () => {
     setIsScanning(true);
     try {
-      await api.scanAssets();
+      await api.scanAssets({ scanRoots: deepScanRoots });
       const latestRuns = await api.getScanRuns();
       const latestRun = latestRuns[0] || null;
       setScanRun(latestRun);
@@ -72,6 +75,33 @@ export default function ScanPage({ scanRuns, onRefresh }: ScanPageProps) {
       setIsScanning(false);
     }
   };
+
+  const chooseDeepScanDirectory = async () => {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: true,
+        title: '选择深度扫描目录',
+      });
+      const selectedPaths = Array.isArray(selected) ? selected : selected ? [selected] : [];
+
+      if (selectedPaths.length === 0) {
+        return;
+      }
+
+      setDeepScanRoots((roots) => Array.from(new Set([...roots, ...selectedPaths])));
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '无法打开目录选择器', 'error');
+    }
+  };
+
+  const savedScanPaths = settings?.scanPaths ?? [
+    '~/.codex',
+    '~/.claude',
+    '~/.opencode',
+    '~/.hermes',
+    '~/.openclaw',
+  ];
 
   return (
     <div className="flex h-full overflow-y-auto">
@@ -200,19 +230,43 @@ export default function ScanPage({ scanRuns, onRefresh }: ScanPageProps) {
                   '/opt/homebrew/bin',
                   '/usr/local/bin',
                   '~/.local/bin',
-                  '~/.codex, ~/.claude, ~/.opencode',
-                  '~/.config/opencode, ~/.hermes, ~/.openclaw',
+                  ...savedScanPaths,
                 ].map((path, i) => (
                   <code key={i} className="block text-xs font-mono text-gray-600 bg-gray-50 px-3 py-2 rounded-lg">{path}</code>
                 ))}
               </div>
             </div>
             <div className="pt-3 border-t border-gray-100">
-              <button className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-200">
+              <button
+                onClick={chooseDeepScanDirectory}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-200"
+              >
                 <FolderSearch className="w-4 h-4" />
                 选择深度扫描目录
               </button>
-              <p className="text-xs text-gray-400 mt-2">深度扫描将遍历用户选择的目录，可能包含大量隐藏文件夹。</p>
+              <p className="text-xs text-gray-400 mt-2">
+                {deepScanRoots.length > 0
+                  ? '重新扫描会优先使用下方已选择目录。'
+                  : settings?.enableDeepScan
+                    ? '未单独选择目录时，将使用设置页保存的深度扫描路径。'
+                    : '深度扫描将遍历用户选择的目录，可能包含大量隐藏文件夹。'}
+              </p>
+              {deepScanRoots.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  {deepScanRoots.map((root) => (
+                    <div key={root} className="flex items-center gap-2">
+                      <code className="flex-1 text-xs font-mono text-gray-600 bg-blue-50 px-3 py-2 rounded-lg break-all">{root}</code>
+                      <button
+                        onClick={() => setDeepScanRoots((roots) => roots.filter((item) => item !== root))}
+                        className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                        title="移除目录"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

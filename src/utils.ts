@@ -6,7 +6,15 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDate(dateStr: string): string {
+  if (!dateStr) {
+    return '未知时间';
+  }
+
   const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) {
+    return '未知时间';
+  }
+
   return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: 'short',

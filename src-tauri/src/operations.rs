@@ -131,8 +131,10 @@ fn preview_apply_model_profile_request(
     let kind = PlatformKind::from_str(platform_id)
         .ok_or_else(|| format!("Unknown platform id: {platform_id}"))?;
     let adapter = adapters::adapter_for_kind(&kind);
+    let target_format = config_format_for_path(&request.target_path);
+    let model_config_files = adapter.model_config_files();
 
-    if adapter.writable_status() == "readonly" || adapter.model_config_files().is_empty() {
+    if adapter.writable_status() == "readonly" || model_config_files.is_empty() {
         return Ok(OperationPreview {
             operation_type: "apply-model-profile".to_string(),
             target_id: request.target_id.clone(),
@@ -150,6 +152,34 @@ fn preview_apply_model_profile_request(
         });
     }
 
+    let Some(config_spec) = model_config_files
+        .iter()
+        .find(|config| Some(config.format) == target_format.as_deref())
+    else {
+        let declared = model_config_files
+            .iter()
+            .map(|config| config.format)
+            .collect::<Vec<_>>()
+            .join(", ");
+        return Ok(OperationPreview {
+            operation_type: "apply-model-profile".to_string(),
+            target_id: request.target_id.clone(),
+            target_name: request.target_name.clone(),
+            target_type: request.target_type.clone(),
+            target_path: request.target_path.clone(),
+            source_path: request.source_path.clone(),
+            supported: false,
+            files_to_modify: Vec::new(),
+            files_to_move: Vec::new(),
+            backup_paths: Vec::new(),
+            written_keys: Vec::new(),
+            needs_restart: false,
+            risks: vec![format!(
+                "目标格式未由 adapter 声明支持，可写格式: {declared}"
+            )],
+        });
+    };
+
     Ok(OperationPreview {
         operation_type: "apply-model-profile".to_string(),
         target_id: request.target_id.clone(),
@@ -161,13 +191,16 @@ fn preview_apply_model_profile_request(
         files_to_modify: vec![request.target_path.clone()],
         files_to_move: Vec::new(),
         backup_paths: vec![request.target_path.clone()],
-        written_keys: vec![
-            "provider".to_string(),
-            "model".to_string(),
-            "base_url".to_string(),
-        ],
+        written_keys: config_spec
+            .writable_keys
+            .iter()
+            .map(|key| key.to_string())
+            .collect(),
         needs_restart: true,
-        risks: vec!["将修改平台模型配置".to_string()],
+        risks: vec![format!(
+            "将按 adapter 声明以 {} 策略合并平台模型配置",
+            config_spec.merge_strategy
+        )],
     })
 }
 
@@ -222,6 +255,8 @@ pub fn execute_operation(
                 .source_path
                 .clone()
                 .ok_or_else(|| "恢复操作缺少备份路径".to_string())?;
+            let backup =
+                backup_existing_target(conn, &preview.target_path, &operation_id, "restore")?;
             fileops::restore_from_backup(&backup_path, &preview.target_path)?;
             OperationExecutionResult {
                 operation_id: operation_id.clone(),
@@ -229,7 +264,7 @@ pub fn execute_operation(
                 target_id: preview.target_id.clone(),
                 target_path: preview.target_path.clone(),
                 outcome_path: Some(preview.target_path.clone()),
-                backup_id: None,
+                backup_id: backup.as_ref().map(|entry| entry.id.clone()),
                 message: "已恢复备份".to_string(),
             }
         }
@@ -246,8 +281,14 @@ pub fn execute_operation(
             let profile = db::get_model_profile_by_id(conn, &profile_id)
                 .map_err(|e| e.to_string())?
                 .ok_or_else(|| "Model profile not found".to_string())?;
-            let backup = backup_existing_target(conn, &preview.target_path, &operation_id)?;
-            write_model_profile_to_target(&preview.target_path, &profile)?;
+            let config_spec = model_config_spec_for_target(&platform_id, &preview.target_path)?;
+            let backup = backup_existing_target(
+                conn,
+                &preview.target_path,
+                &operation_id,
+                "apply-model-profile",
+            )?;
+            write_model_profile_to_target(&preview.target_path, &profile, &config_spec)?;
             upsert_model_binding_from_profile(conn, &platform_id, &preview.target_path, &profile)?;
 
             OperationExecutionResult {
@@ -281,10 +322,28 @@ pub fn execute_operation(
     Ok(execution_result)
 }
 
+fn model_config_spec_for_target(
+    platform_id: &str,
+    target_path: &str,
+) -> Result<adapters::ModelConfigSpec, String> {
+    let kind = PlatformKind::from_str(platform_id)
+        .ok_or_else(|| format!("Unknown platform id: {platform_id}"))?;
+    let adapter = adapters::adapter_for_kind(&kind);
+    let target_format = config_format_for_path(target_path)
+        .ok_or_else(|| format!("Unsupported config format for path: {target_path}"))?;
+
+    adapter
+        .model_config_files()
+        .into_iter()
+        .find(|config| config.format == target_format)
+        .ok_or_else(|| format!("目标格式未由 adapter 声明支持: {target_format}"))
+}
+
 fn backup_existing_target(
     conn: &Connection,
     target_path: &str,
     operation_id: &str,
+    operation_type: &str,
 ) -> Result<Option<db::Backup>, String> {
     if !Path::new(target_path).exists() {
         return Ok(None);
@@ -293,9 +352,12 @@ fn backup_existing_target(
     let backup_path = fileops::create_backup(target_path)?;
     let hash = sha256_file(Path::new(&backup_path))?;
     let backup = db::Backup {
-        id: format!("backup-{}", Utc::now().timestamp_nanos_opt().unwrap_or_default()),
+        id: format!(
+            "backup-{}",
+            Utc::now().timestamp_nanos_opt().unwrap_or_default()
+        ),
         operation_id: operation_id.to_string(),
-        operation_type: "apply-model-profile".to_string(),
+        operation_type: operation_type.to_string(),
         original_path: target_path.to_string(),
         backup_path: backup_path.clone(),
         hash,
@@ -305,6 +367,20 @@ fn backup_existing_target(
     Ok(Some(backup))
 }
 
+fn config_format_for_path(path: &str) -> Option<String> {
+    let extension = Path::new(path)
+        .extension()
+        .and_then(|value| value.to_str())?
+        .to_ascii_lowercase();
+
+    match extension.as_str() {
+        "json" => Some("json".to_string()),
+        "yaml" | "yml" => Some("yaml".to_string()),
+        "toml" => Some("toml".to_string()),
+        _ => None,
+    }
+}
+
 fn sha256_file(path: &Path) -> Result<String, String> {
     let data = fs::read(path).map_err(|e| e.to_string())?;
     let mut hasher = Sha256::new();
@@ -312,17 +388,25 @@ fn sha256_file(path: &Path) -> Result<String, String> {
     Ok(hex::encode(hasher.finalize()))
 }
 
-fn write_model_profile_to_target(target_path: &str, profile: &db::ModelProfile) -> Result<(), String> {
+fn write_model_profile_to_target(
+    target_path: &str,
+    profile: &db::ModelProfile,
+    config_spec: &adapters::ModelConfigSpec,
+) -> Result<(), String> {
     let path = Path::new(target_path);
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
 
-    let content = render_model_profile_content(path, profile)?;
+    let content = render_model_profile_content(path, profile, config_spec)?;
     fs::write(path, content).map_err(|e| e.to_string())
 }
 
-fn render_model_profile_content(path: &Path, profile: &db::ModelProfile) -> Result<String, String> {
+fn render_model_profile_content(
+    path: &Path,
+    profile: &db::ModelProfile,
+    config_spec: &adapters::ModelConfigSpec,
+) -> Result<String, String> {
     let extension = path
         .extension()
         .and_then(|value| value.to_str())
@@ -340,9 +424,7 @@ fn render_model_profile_content(path: &Path, profile: &db::ModelProfile) -> Resu
             let object = value
                 .as_object_mut()
                 .ok_or_else(|| format!("JSON config root must be an object: {}", path.display()))?;
-            object.insert("provider".to_string(), serde_json::Value::String(profile.provider.clone()));
-            object.insert("model".to_string(), serde_json::Value::String(profile.model_id.clone()));
-            object.insert("base_url".to_string(), serde_json::Value::String(profile.base_url.clone()));
+            insert_json_model_keys(object, profile, config_spec.writable_keys);
             serde_json::to_string_pretty(&value).map_err(|e| e.to_string())
         }
         "yaml" | "yml" => {
@@ -353,18 +435,7 @@ fn render_model_profile_content(path: &Path, profile: &db::ModelProfile) -> Resu
             let mapping = value
                 .as_mapping_mut()
                 .ok_or_else(|| format!("YAML config root must be a mapping: {}", path.display()))?;
-            mapping.insert(
-                serde_yaml::Value::String("provider".to_string()),
-                serde_yaml::Value::String(profile.provider.clone()),
-            );
-            mapping.insert(
-                serde_yaml::Value::String("model".to_string()),
-                serde_yaml::Value::String(profile.model_id.clone()),
-            );
-            mapping.insert(
-                serde_yaml::Value::String("base_url".to_string()),
-                serde_yaml::Value::String(profile.base_url.clone()),
-            );
+            insert_yaml_model_keys(mapping, profile, config_spec.writable_keys);
             serde_yaml::to_string(&value).map_err(|e| e.to_string())
         }
         "toml" => {
@@ -375,12 +446,84 @@ fn render_model_profile_content(path: &Path, profile: &db::ModelProfile) -> Resu
             let table = value
                 .as_table_mut()
                 .ok_or_else(|| format!("TOML config root must be a table: {}", path.display()))?;
-            table.insert("provider".to_string(), toml::Value::String(profile.provider.clone()));
-            table.insert("model".to_string(), toml::Value::String(profile.model_id.clone()));
-            table.insert("base_url".to_string(), toml::Value::String(profile.base_url.clone()));
+            insert_toml_model_keys(table, profile, config_spec.writable_keys);
             toml::to_string_pretty(&value).map_err(|e| e.to_string())
         }
-        _ => Err(format!("Unsupported config format for path: {}", path.display())),
+        _ => Err(format!(
+            "Unsupported config format for path: {}",
+            path.display()
+        )),
+    }
+}
+
+fn insert_json_model_keys(
+    object: &mut serde_json::Map<String, serde_json::Value>,
+    profile: &db::ModelProfile,
+    writable_keys: &[&str],
+) {
+    for key in writable_keys {
+        match *key {
+            "provider" => {
+                object.insert(
+                    key.to_string(),
+                    serde_json::Value::String(profile.provider.clone()),
+                );
+            }
+            "model" => {
+                object.insert(
+                    key.to_string(),
+                    serde_json::Value::String(profile.model_id.clone()),
+                );
+            }
+            "base_url" => {
+                object.insert(
+                    key.to_string(),
+                    serde_json::Value::String(profile.base_url.clone()),
+                );
+            }
+            _ => {}
+        }
+    }
+}
+
+fn insert_yaml_model_keys(
+    mapping: &mut serde_yaml::Mapping,
+    profile: &db::ModelProfile,
+    writable_keys: &[&str],
+) {
+    for key in writable_keys {
+        let value = match *key {
+            "provider" => Some(profile.provider.clone()),
+            "model" => Some(profile.model_id.clone()),
+            "base_url" => Some(profile.base_url.clone()),
+            _ => None,
+        };
+
+        if let Some(value) = value {
+            mapping.insert(
+                serde_yaml::Value::String(key.to_string()),
+                serde_yaml::Value::String(value),
+            );
+        }
+    }
+}
+
+fn insert_toml_model_keys(
+    table: &mut toml::map::Map<String, toml::Value>,
+    profile: &db::ModelProfile,
+    writable_keys: &[&str],
+) {
+    for key in writable_keys {
+        let value = match *key {
+            "provider" => Some(profile.provider.clone()),
+            "model" => Some(profile.model_id.clone()),
+            "base_url" => Some(profile.base_url.clone()),
+            _ => None,
+        };
+
+        if let Some(value) = value {
+            table.insert(key.to_string(), toml::Value::String(value));
+        }
     }
 }
 

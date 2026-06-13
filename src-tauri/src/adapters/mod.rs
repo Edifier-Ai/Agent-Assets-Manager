@@ -2,8 +2,8 @@ pub mod claude;
 pub mod codex;
 pub mod generic_cli;
 pub mod hermes;
-pub mod opencode;
 pub mod openclaw;
+pub mod opencode;
 
 use crate::platform::PlatformKind;
 
@@ -18,7 +18,12 @@ pub struct AssetSearchSpec {
 pub struct ModelConfigSpec {
     pub filename: &'static str,
     pub format: &'static str,
+    pub writable_keys: &'static [&'static str],
+    pub merge_strategy: &'static str,
 }
+
+pub const STANDARD_MODEL_WRITABLE_KEYS: &[&str] = &["provider", "model", "base_url"];
+pub const ROOT_OBJECT_MERGE_STRATEGY: &str = "merge-root-object";
 
 pub trait PlatformAdapter {
     fn kind(&self) -> PlatformKind;

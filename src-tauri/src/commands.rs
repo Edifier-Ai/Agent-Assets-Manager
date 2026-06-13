@@ -1,9 +1,9 @@
-use serde::{Deserialize, Serialize};
 use crate::db;
 use crate::db::get_db_connection;
-use crate::scanner;
 use crate::operations;
 use crate::platform::detect_all_platforms;
+use crate::scanner;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
 pub struct ApiResponse<T> {
@@ -14,10 +14,18 @@ pub struct ApiResponse<T> {
 
 impl<T> ApiResponse<T> {
     fn ok(data: T) -> Self {
-        Self { success: true, data: Some(data), error: None }
+        Self {
+            success: true,
+            data: Some(data),
+            error: None,
+        }
     }
     fn err(msg: String) -> Self {
-        Self { success: false, data: None, error: Some(msg) }
+        Self {
+            success: false,
+            data: None,
+            error: Some(msg),
+        }
     }
 }
 
@@ -28,7 +36,7 @@ pub fn scan_platforms() -> ApiResponse<Vec<db::Platform>> {
         Err(e) => return ApiResponse::err(e.to_string()),
     };
     let now = chrono::Utc::now().to_rfc3339();
-    
+
     for dp in detect_all_platforms() {
         let platform = db::Platform {
             id: dp.id.clone(),
@@ -47,7 +55,7 @@ pub fn scan_platforms() -> ApiResponse<Vec<db::Platform>> {
             return ApiResponse::err(e.to_string());
         }
     }
-    
+
     match db::get_all_platforms(&conn) {
         Ok(p) => ApiResponse::ok(p),
         Err(e) => ApiResponse::err(e.to_string()),
@@ -55,13 +63,36 @@ pub fn scan_platforms() -> ApiResponse<Vec<db::Platform>> {
 }
 
 #[tauri::command]
-pub fn scan_assets() -> ApiResponse<scanner::ScanResult> {
+pub fn scan_assets(request: Option<ScanAssetsRequest>) -> ApiResponse<scanner::ScanResult> {
     let conn = match get_db_connection() {
         Ok(c) => c,
         Err(e) => return ApiResponse::err(e.to_string()),
     };
-    
-    match scanner::run_full_scan(&conn) {
+
+    let context = default_settings_context();
+    let settings = match db::get_settings(
+        &conn,
+        &context.scan_paths,
+        &context.db_location,
+        &context.trash_location,
+    ) {
+        Ok(settings) => settings,
+        Err(e) => return ApiResponse::err(e.to_string()),
+    };
+    let request = request.unwrap_or_default();
+    let explicit_roots = sanitize_paths(request.scan_roots.unwrap_or_default(), Vec::new());
+    let scan_roots = if explicit_roots.is_empty() && settings.enable_deep_scan {
+        settings.scan_paths
+    } else {
+        explicit_roots
+    };
+    let result = if scan_roots.is_empty() {
+        scanner::run_full_scan(&conn)
+    } else {
+        scanner::run_full_scan_with_custom_roots(&conn, scan_roots)
+    };
+
+    match result {
         Ok(result) => ApiResponse::ok(result),
         Err(e) => ApiResponse::err(e.to_string()),
     }
@@ -163,12 +194,10 @@ pub fn get_asset_detail(request: AssetDetailRequest) -> ApiResponse<db::Asset> {
         Err(e) => return ApiResponse::err(e.to_string()),
     };
     match db::get_all_assets(&conn) {
-        Ok(assets) => {
-            match assets.into_iter().find(|a| a.id == request.asset_id) {
-                Some(a) => ApiResponse::ok(a),
-                None => ApiResponse::err("Asset not found".to_string()),
-            }
-        }
+        Ok(assets) => match assets.into_iter().find(|a| a.id == request.asset_id) {
+            Some(a) => ApiResponse::ok(a),
+            None => ApiResponse::err("Asset not found".to_string()),
+        },
         Err(e) => ApiResponse::err(e.to_string()),
     }
 }
@@ -220,8 +249,16 @@ pub fn get_settings() -> ApiResponse<db::AppSettings> {
 #[derive(Serialize, Deserialize)]
 pub struct SaveSettingsRequest {
     pub theme: String,
+    pub scan_paths: Vec<String>,
     pub include_project_local: bool,
     pub enable_deep_scan: bool,
+    pub db_location: String,
+    pub trash_location: String,
+}
+
+#[derive(Default, Serialize, Deserialize)]
+pub struct ScanAssetsRequest {
+    pub scan_roots: Option<Vec<String>>,
 }
 
 struct SettingsContext {
@@ -251,13 +288,38 @@ fn merge_save_settings_request(
     request: SaveSettingsRequest,
 ) -> db::AppSettings {
     db::AppSettings {
-        scan_paths: current.scan_paths,
+        scan_paths: sanitize_paths(request.scan_paths, current.scan_paths),
         include_project_local: request.include_project_local,
         enable_deep_scan: request.enable_deep_scan,
-        db_location: current.db_location,
-        trash_location: current.trash_location,
+        db_location: sanitize_path(request.db_location, current.db_location),
+        trash_location: sanitize_path(request.trash_location, current.trash_location),
         theme: request.theme,
         security_level: current.security_level,
+    }
+}
+
+fn sanitize_path(path: String, fallback: String) -> String {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        fallback
+    } else {
+        trimmed.to_string()
+    }
+}
+
+fn sanitize_paths(paths: Vec<String>, fallback: Vec<String>) -> Vec<String> {
+    let mut cleaned = paths
+        .into_iter()
+        .map(|path| path.trim().to_string())
+        .filter(|path| !path.is_empty())
+        .collect::<Vec<_>>();
+    cleaned.sort();
+    cleaned.dedup();
+
+    if cleaned.is_empty() {
+        fallback
+    } else {
+        cleaned
     }
 }
 
@@ -303,8 +365,11 @@ mod tests {
         };
         let request = SaveSettingsRequest {
             theme: "dark".to_string(),
+            scan_paths: current.scan_paths.clone(),
             include_project_local: false,
             enable_deep_scan: true,
+            db_location: current.db_location.clone(),
+            trash_location: current.trash_location.clone(),
         };
 
         let merged = merge_save_settings_request(current, request);
@@ -316,5 +381,48 @@ mod tests {
         assert_eq!(merged.theme, "dark");
         assert!(!merged.include_project_local);
         assert!(merged.enable_deep_scan);
+    }
+
+    #[test]
+    fn merge_save_settings_request_updates_editable_paths_and_locations() {
+        let current = db::AppSettings {
+            scan_paths: vec!["/Users/test/.codex".to_string()],
+            include_project_local: true,
+            enable_deep_scan: false,
+            db_location: "/tmp/data.db".to_string(),
+            trash_location: "/tmp/Trash".to_string(),
+            theme: "system".to_string(),
+            security_level: "strict".to_string(),
+        };
+        let request = SaveSettingsRequest {
+            theme: "light".to_string(),
+            scan_paths: vec![
+                "/Users/test/.codex".to_string(),
+                "/Users/test/Projects".to_string(),
+            ],
+            include_project_local: false,
+            enable_deep_scan: true,
+            db_location: "/Users/test/Data/agent-assets.db".to_string(),
+            trash_location: "/Users/test/.Trash/Agent Assets Manager".to_string(),
+        };
+
+        let merged = merge_save_settings_request(current, request);
+
+        assert_eq!(
+            merged.scan_paths,
+            vec![
+                "/Users/test/.codex".to_string(),
+                "/Users/test/Projects".to_string()
+            ]
+        );
+        assert_eq!(merged.db_location, "/Users/test/Data/agent-assets.db");
+        assert_eq!(
+            merged.trash_location,
+            "/Users/test/.Trash/Agent Assets Manager"
+        );
+        assert_eq!(merged.theme, "light");
+        assert!(!merged.include_project_local);
+        assert!(merged.enable_deep_scan);
+        assert_eq!(merged.security_level, "strict");
     }
 }

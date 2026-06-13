@@ -348,7 +348,11 @@ pub fn run_migrations(conn: &Connection) -> SqlResult<()> {
     Ok(())
 }
 
-fn default_settings(default_scan_paths: &[String], db_location: &str, trash_location: &str) -> AppSettings {
+fn default_settings(
+    default_scan_paths: &[String],
+    db_location: &str,
+    trash_location: &str,
+) -> AppSettings {
     AppSettings {
         scan_paths: default_scan_paths.to_vec(),
         include_project_local: true,
@@ -446,7 +450,8 @@ pub fn get_settings(
     let mut settings = default_settings(default_scan_paths, db_location, trash_location);
 
     if let Some(raw) = get_setting_value(conn, "scan_paths")? {
-        settings.scan_paths = serde_json::from_str(&raw).unwrap_or_else(|_| settings.scan_paths.clone());
+        settings.scan_paths =
+            serde_json::from_str(&raw).unwrap_or_else(|_| settings.scan_paths.clone());
     }
     if let Some(raw) = get_setting_value(conn, "include_project_local")? {
         settings.include_project_local = raw == "true";
@@ -733,7 +738,10 @@ pub fn get_model_profiles(conn: &Connection) -> SqlResult<Vec<ModelProfile>> {
     rows.collect()
 }
 
-pub fn get_model_profile_by_id(conn: &Connection, profile_id: &str) -> SqlResult<Option<ModelProfile>> {
+pub fn get_model_profile_by_id(
+    conn: &Connection,
+    profile_id: &str,
+) -> SqlResult<Option<ModelProfile>> {
     run_migrations(conn)?;
     seed_default_model_profiles(conn)?;
 
@@ -927,7 +935,7 @@ pub fn clear_scan_data(conn: &Connection) -> SqlResult<()> {
 
 fn default_app_data_dir() -> PathBuf {
     dirs::data_dir()
-        .unwrap_or_else(|| std::env::current_dir().unwrap())
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| std::env::temp_dir()))
         .join("Agent Assets Manager")
 }
 
@@ -1017,7 +1025,10 @@ mod tests {
         .unwrap();
 
         assert_eq!(reloaded.scan_paths, settings.scan_paths);
-        assert_eq!(reloaded.include_project_local, settings.include_project_local);
+        assert_eq!(
+            reloaded.include_project_local,
+            settings.include_project_local
+        );
         assert_eq!(reloaded.enable_deep_scan, settings.enable_deep_scan);
         assert_eq!(reloaded.db_location, settings.db_location);
         assert_eq!(reloaded.trash_location, settings.trash_location);

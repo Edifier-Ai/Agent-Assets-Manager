@@ -19,6 +19,8 @@ describe('resolveSettingsFormState', () => {
       scanPaths: ['~/.codex', '~/workspace/.claude'],
       includeProjectLocal: false,
       enableDeepScan: true,
+      dbLocation: '/tmp/data.db',
+      trashLocation: '/tmp/Trash',
     });
   });
 
@@ -28,6 +30,8 @@ describe('resolveSettingsFormState', () => {
       scanPaths: ['~/.codex', '~/.claude', '~/.opencode', '~/.hermes', '~/.openclaw'],
       includeProjectLocal: true,
       enableDeepScan: false,
+      dbLocation: '~/Library/Application Support/Agent Assets Manager/data.db',
+      trashLocation: '~/Library/Application Support/Agent Assets Manager/Trash',
     });
   });
 });

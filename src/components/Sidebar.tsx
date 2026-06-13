@@ -1,9 +1,11 @@
 import { Home, Box, Layers, Brain, ScanLine, Archive, Settings, Briefcase } from 'lucide-react';
-import type { NavPage } from '../types';
+import type { NavPage, ScanRun } from '../types';
 
 interface SidebarProps {
   active: NavPage;
   onNavigate: (page: NavPage) => void;
+  latestScanRun?: ScanRun;
+  scanning?: boolean;
 }
 
 const items: { id: NavPage; label: string; icon: React.ElementType }[] = [
@@ -16,7 +18,27 @@ const items: { id: NavPage; label: string; icon: React.ElementType }[] = [
   { id: 'settings', label: '设置', icon: Settings },
 ];
 
-export default function Sidebar({ active, onNavigate }: SidebarProps) {
+function getScanStatusLabel(latestScanRun?: ScanRun, scanning?: boolean): string {
+  if (scanning || latestScanRun?.status === 'running') {
+    return '本地扫描中';
+  }
+  if (!latestScanRun) {
+    return '暂无扫描记录';
+  }
+  return latestScanRun.status === 'completed' ? '本地扫描完成' : '扫描失败';
+}
+
+function getScanCountLabel(latestScanRun?: ScanRun): string {
+  if (!latestScanRun) {
+    return '暂无资产索引';
+  }
+  return `${latestScanRun.assetsFound} 资产已索引`;
+}
+
+export default function Sidebar({ active, onNavigate, latestScanRun, scanning }: SidebarProps) {
+  const scanStatusLabel = getScanStatusLabel(latestScanRun, scanning);
+  const scanCountLabel = getScanCountLabel(latestScanRun);
+
   return (
     <div className="w-56 bg-sidebar flex flex-col border-r border-gray-200/60 select-none shrink-0">
       <div className="p-4 flex items-center gap-2.5">
@@ -44,9 +66,9 @@ export default function Sidebar({ active, onNavigate }: SidebarProps) {
       <div className="p-4 border-t border-gray-200/60">
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <div className="w-2 h-2 rounded-full bg-green-500" />
-          <span>本地扫描完成</span>
+          <span>{scanStatusLabel}</span>
         </div>
-        <div className="mt-1 text-xs text-gray-400 pl-4">128 资产已索引</div>
+        <div className="mt-1 text-xs text-gray-400 pl-4">{scanCountLabel}</div>
       </div>
     </div>
   );

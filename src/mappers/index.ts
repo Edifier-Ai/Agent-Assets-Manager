@@ -154,8 +154,11 @@ export interface AppSettingsDto {
 
 export interface SaveSettingsRequestDto {
   theme: string;
+  scan_paths: string[];
   include_project_local: boolean;
   enable_deep_scan: boolean;
+  db_location: string;
+  trash_location: string;
 }
 
 export interface ScanSummaryDto {
@@ -479,8 +482,11 @@ export function mapScanSummaryDto(dto: ScanSummaryDto): ScanSummary {
 export function mapSaveSettingsInput(input: SaveSettingsInput): SaveSettingsRequestDto {
   return {
     theme: input.theme,
+    scan_paths: input.scanPaths,
     include_project_local: input.includeProjectLocal,
     enable_deep_scan: input.enableDeepScan,
+    db_location: input.dbLocation,
+    trash_location: input.trashLocation,
   };
 }
 

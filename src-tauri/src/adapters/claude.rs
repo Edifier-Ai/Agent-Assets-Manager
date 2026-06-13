@@ -1,4 +1,7 @@
-use super::{home_root, AssetSearchSpec, ModelConfigSpec, PlatformAdapter};
+use super::{
+    home_root, AssetSearchSpec, ModelConfigSpec, PlatformAdapter, ROOT_OBJECT_MERGE_STRATEGY,
+    STANDARD_MODEL_WRITABLE_KEYS,
+};
 use crate::platform::PlatformKind;
 
 #[derive(Default)]
@@ -45,6 +48,8 @@ impl PlatformAdapter for ClaudeAdapter {
         vec![ModelConfigSpec {
             filename: "config.json",
             format: "json",
+            writable_keys: STANDARD_MODEL_WRITABLE_KEYS,
+            merge_strategy: ROOT_OBJECT_MERGE_STRATEGY,
         }]
     }
 }

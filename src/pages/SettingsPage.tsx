@@ -1,7 +1,7 @@
 import { useToast } from '../components/Toast';
 import { useEffect, useState } from 'react';
 import {
-  Folder, Database, Sun, Moon, Monitor, Shield, Save, RotateCcw, CheckCircle2
+  Folder, Database, Sun, Moon, Monitor, Shield, Save, CheckCircle2, Plus, Trash2
 } from 'lucide-react';
 import type { AppSettings, SaveSettingsInput } from '../types';
 
@@ -11,13 +11,17 @@ interface SettingsPageProps {
 }
 
 const DEFAULT_SCAN_PATHS = ['~/.codex', '~/.claude', '~/.opencode', '~/.hermes', '~/.openclaw'];
+const DEFAULT_DB_LOCATION = '~/Library/Application Support/Agent Assets Manager/data.db';
+const DEFAULT_TRASH_LOCATION = '~/Library/Application Support/Agent Assets Manager/Trash';
 
-export function resolveSettingsFormState(settings?: AppSettings): SaveSettingsInput & { scanPaths: string[] } {
+export function resolveSettingsFormState(settings?: AppSettings): SaveSettingsInput {
   return {
     theme: settings?.theme ?? 'system',
     scanPaths: settings?.scanPaths ?? DEFAULT_SCAN_PATHS,
     includeProjectLocal: settings?.includeProjectLocal ?? true,
     enableDeepScan: settings?.enableDeepScan ?? false,
+    dbLocation: settings?.dbLocation ?? DEFAULT_DB_LOCATION,
+    trashLocation: settings?.trashLocation ?? DEFAULT_TRASH_LOCATION,
   };
 }
 
@@ -26,6 +30,8 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
   const [scanPaths, setScanPaths] = useState<string[]>(DEFAULT_SCAN_PATHS);
   const [includeProjectLocal, setIncludeProjectLocal] = useState(true);
   const [enableDeepScan, setEnableDeepScan] = useState(false);
+  const [dbLocation, setDbLocation] = useState(DEFAULT_DB_LOCATION);
+  const [trashLocation, setTrashLocation] = useState(DEFAULT_TRASH_LOCATION);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const { showToast } = useToast();
@@ -36,6 +42,8 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
     setScanPaths(nextState.scanPaths);
     setIncludeProjectLocal(nextState.includeProjectLocal);
     setEnableDeepScan(nextState.enableDeepScan);
+    setDbLocation(nextState.dbLocation);
+    setTrashLocation(nextState.trashLocation);
   }, [settings]);
 
   const handleReset = () => {
@@ -44,6 +52,22 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
     setScanPaths(nextState.scanPaths);
     setIncludeProjectLocal(nextState.includeProjectLocal);
     setEnableDeepScan(nextState.enableDeepScan);
+    setDbLocation(nextState.dbLocation);
+    setTrashLocation(nextState.trashLocation);
+  };
+
+  const updateScanPath = (index: number, value: string) => {
+    setScanPaths((paths) => paths.map((path, currentIndex) => (
+      currentIndex === index ? value : path
+    )));
+  };
+
+  const removeScanPath = (index: number) => {
+    setScanPaths((paths) => paths.filter((_, currentIndex) => currentIndex !== index));
+  };
+
+  const addScanPath = () => {
+    setScanPaths((paths) => [...paths, '']);
   };
 
   const handleSave = async () => {
@@ -51,8 +75,11 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
       setSaving(true);
       await onSaveSettings?.({
         theme,
+        scanPaths: scanPaths.map((path) => path.trim()).filter(Boolean),
         includeProjectLocal,
         enableDeepScan,
+        dbLocation: dbLocation.trim(),
+        trashLocation: trashLocation.trim(),
       });
       setSaved(true);
       showToast('设置已保存', 'success');
@@ -86,12 +113,27 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
               <div className="space-y-2">
                 {scanPaths.map((path, i) => (
                   <div key={i} className="flex items-center gap-2">
-                    <code className="flex-1 text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg">{path}</code>
-                    <button className="p-2 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors">
-                      <RotateCcw className="w-3.5 h-3.5" />
+                    <input
+                      value={path}
+                      onChange={(event) => updateScanPath(i, event.target.value)}
+                      className="flex-1 text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border border-transparent focus:border-gray-300 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => removeScanPath(i)}
+                      className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                      title="移除路径"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 ))}
+                <button
+                  onClick={addScanPath}
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  添加扫描路径
+                </button>
               </div>
             </div>
 
@@ -128,15 +170,19 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
           <div className="p-5 space-y-4">
             <div>
               <div className="text-sm font-medium text-gray-700 mb-1.5">SQLite 数据库位置</div>
-              <code className="block text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg">
-                {settings?.dbLocation ?? '~/Library/Application Support/Agent Assets Manager/data.db'}
-              </code>
+              <input
+                value={dbLocation}
+                onChange={(event) => setDbLocation(event.target.value)}
+                className="block w-full text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border border-transparent focus:border-gray-300 focus:outline-none"
+              />
             </div>
             <div>
               <div className="text-sm font-medium text-gray-700 mb-1.5">应用管理回收站位置</div>
-              <code className="block text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg">
-                {settings?.trashLocation ?? '~/Library/Application Support/Agent Assets Manager/Trash'}
-              </code>
+              <input
+                value={trashLocation}
+                onChange={(event) => setTrashLocation(event.target.value)}
+                className="block w-full text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border border-transparent focus:border-gray-300 focus:outline-none"
+              />
             </div>
           </div>
         </div>

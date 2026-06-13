@@ -8,6 +8,8 @@ interface StatusBarProps {
 }
 
 export default function StatusBar({ lastScanTime, onRescan, loading }: StatusBarProps) {
+  const scanTimeLabel = lastScanTime ? formatDate(lastScanTime) : '未扫描';
+
   return (
     <div className="h-12 flex items-center justify-between px-5 border-b border-gray-100 bg-white/80 backdrop-blur-sm shrink-0">
       <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -16,7 +18,7 @@ export default function StatusBar({ lastScanTime, onRescan, loading }: StatusBar
         ) : (
           <CheckCircle2 className="w-4 h-4 text-green-500" />
         )}
-        <span>{loading ? '扫描中...' : `上次扫描：${formatDate(lastScanTime)}`}</span>
+        <span>{loading ? '扫描中...' : `上次扫描：${scanTimeLabel}`}</span>
       </div>
       <button
         onClick={onRescan}

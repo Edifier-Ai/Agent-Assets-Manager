@@ -2,18 +2,19 @@ use std::fs;
 
 #[test]
 fn preview_delete_rejects_protected_assets() {
-    let preview = crate::operations::preview_operation(crate::operations::PreviewOperationRequest {
-        operation_type: "delete".to_string(),
-        target_id: Some("asset-1".to_string()),
-        target_name: "Builtin Skill".to_string(),
-        target_type: "Skill".to_string(),
-        target_path: "~/.codex/skills/builtin-skill/SKILL.md".to_string(),
-        source_path: None,
-        official: true,
-        risk_level: Some("medium".to_string()),
-        platform_id: None,
-    })
-    .unwrap();
+    let preview =
+        crate::operations::preview_operation(crate::operations::PreviewOperationRequest {
+            operation_type: "delete".to_string(),
+            target_id: Some("asset-1".to_string()),
+            target_name: "Builtin Skill".to_string(),
+            target_type: "Skill".to_string(),
+            target_path: "~/.codex/skills/builtin-skill/SKILL.md".to_string(),
+            source_path: None,
+            official: true,
+            risk_level: Some("medium".to_string()),
+            platform_id: None,
+        })
+        .unwrap();
 
     assert!(!preview.supported);
     assert!(preview.risks.iter().any(|risk| risk.contains("官方")));
@@ -79,18 +80,19 @@ fn execute_delete_writes_operation_log_and_backup_record() {
 
 #[test]
 fn preview_apply_model_profile_reports_supported_platforms() {
-    let writable_preview = crate::operations::preview_operation(crate::operations::PreviewOperationRequest {
-        operation_type: "apply-model-profile".to_string(),
-        target_id: Some("profile-1".to_string()),
-        target_name: "OpenAI Default".to_string(),
-        target_type: "Model Profile".to_string(),
-        target_path: "~/.opencode/config.yaml".to_string(),
-        source_path: None,
-        official: false,
-        risk_level: Some("medium".to_string()),
-        platform_id: Some("opencode".to_string()),
-    })
-    .unwrap();
+    let writable_preview =
+        crate::operations::preview_operation(crate::operations::PreviewOperationRequest {
+            operation_type: "apply-model-profile".to_string(),
+            target_id: Some("profile-1".to_string()),
+            target_name: "OpenAI Default".to_string(),
+            target_type: "Model Profile".to_string(),
+            target_path: "~/.opencode/config.yaml".to_string(),
+            source_path: None,
+            official: false,
+            risk_level: Some("medium".to_string()),
+            platform_id: Some("opencode".to_string()),
+        })
+        .unwrap();
     assert!(writable_preview.supported);
     assert_eq!(writable_preview.operation_type, "apply-model-profile");
     assert!(writable_preview
@@ -98,18 +100,19 @@ fn preview_apply_model_profile_reports_supported_platforms() {
         .iter()
         .any(|key| key == "provider"));
 
-    let readonly_preview = crate::operations::preview_operation(crate::operations::PreviewOperationRequest {
-        operation_type: "apply-model-profile".to_string(),
-        target_id: Some("profile-1".to_string()),
-        target_name: "OpenAI Default".to_string(),
-        target_type: "Model Profile".to_string(),
-        target_path: "~/.claude/config.json".to_string(),
-        source_path: None,
-        official: false,
-        risk_level: Some("medium".to_string()),
-        platform_id: Some("claude".to_string()),
-    })
-    .unwrap();
+    let readonly_preview =
+        crate::operations::preview_operation(crate::operations::PreviewOperationRequest {
+            operation_type: "apply-model-profile".to_string(),
+            target_id: Some("profile-1".to_string()),
+            target_name: "OpenAI Default".to_string(),
+            target_type: "Model Profile".to_string(),
+            target_path: "~/.claude/config.json".to_string(),
+            source_path: None,
+            official: false,
+            risk_level: Some("medium".to_string()),
+            platform_id: Some("claude".to_string()),
+        })
+        .unwrap();
     assert!(!readonly_preview.supported);
     assert!(readonly_preview
         .risks
@@ -119,22 +122,26 @@ fn preview_apply_model_profile_reports_supported_platforms() {
 
 #[test]
 fn preview_operation_supports_apply_model_profile_requests() {
-    let preview = crate::operations::preview_operation(crate::operations::PreviewOperationRequest {
-        operation_type: "apply-model-profile".to_string(),
-        target_id: Some("profile-1".to_string()),
-        target_name: "OpenAI Default".to_string(),
-        target_type: "Model Profile".to_string(),
-        target_path: "~/.opencode/config.yaml".to_string(),
-        source_path: None,
-        official: false,
-        risk_level: Some("medium".to_string()),
-        platform_id: Some("opencode".to_string()),
-    })
-    .unwrap();
+    let preview =
+        crate::operations::preview_operation(crate::operations::PreviewOperationRequest {
+            operation_type: "apply-model-profile".to_string(),
+            target_id: Some("profile-1".to_string()),
+            target_name: "OpenAI Default".to_string(),
+            target_type: "Model Profile".to_string(),
+            target_path: "~/.opencode/config.yaml".to_string(),
+            source_path: None,
+            official: false,
+            risk_level: Some("medium".to_string()),
+            platform_id: Some("opencode".to_string()),
+        })
+        .unwrap();
 
     assert!(preview.supported);
     assert_eq!(preview.operation_type, "apply-model-profile");
-    assert!(preview.files_to_modify.iter().any(|path| path.contains("config.yaml")));
+    assert!(preview
+        .files_to_modify
+        .iter()
+        .any(|path| path.contains("config.yaml")));
 }
 
 #[test]
@@ -273,4 +280,105 @@ fn execute_apply_model_profile_preserves_unrelated_yaml_keys() {
     assert!(content.contains("temperature: 0.2"));
 
     fs::remove_dir_all(&test_root).unwrap();
+}
+
+#[test]
+fn create_backup_generates_unique_paths_for_repeated_backups() {
+    let test_root = std::env::temp_dir().join(format!(
+        "agent-assets-manager-backup-unique-{}",
+        chrono::Utc::now().timestamp_nanos_opt().unwrap()
+    ));
+    fs::create_dir_all(&test_root).unwrap();
+
+    let file_path = test_root.join("config.json");
+    fs::write(&file_path, r#"{"model":"old"}"#).unwrap();
+
+    let first = crate::fileops::create_backup(&file_path.to_string_lossy()).unwrap();
+    let second = crate::fileops::create_backup(&file_path.to_string_lossy()).unwrap();
+
+    assert_ne!(first, second);
+    assert!(std::path::Path::new(&first).exists());
+    assert!(std::path::Path::new(&second).exists());
+
+    fs::remove_dir_all(&test_root).unwrap();
+}
+
+#[test]
+fn execute_restore_backs_up_conflicting_target_and_links_operation_log() {
+    let test_root = std::env::temp_dir().join(format!(
+        "agent-assets-manager-restore-conflict-{}",
+        chrono::Utc::now().timestamp_nanos_opt().unwrap()
+    ));
+    fs::create_dir_all(&test_root).unwrap();
+
+    let db_path = test_root.join("data.db");
+    crate::db::init_db(&db_path).unwrap();
+    let conn = rusqlite::Connection::open(&db_path).unwrap();
+
+    let target_path = test_root.join("config.json");
+    let backup_path = test_root.join("backup-config.json");
+    fs::write(&target_path, r#"{"model":"current"}"#).unwrap();
+    fs::write(&backup_path, r#"{"model":"restored"}"#).unwrap();
+
+    let result = crate::operations::execute_operation(
+        &conn,
+        crate::operations::ExecuteOperationRequest {
+            preview: crate::operations::PreviewOperationRequest {
+                operation_type: "restore".to_string(),
+                target_id: Some("backup-1".to_string()),
+                target_name: "config backup".to_string(),
+                target_type: "Backup".to_string(),
+                target_path: target_path.to_string_lossy().to_string(),
+                source_path: Some(backup_path.to_string_lossy().to_string()),
+                official: false,
+                risk_level: Some("medium".to_string()),
+                platform_id: None,
+            },
+        },
+    )
+    .unwrap();
+
+    assert_eq!(
+        fs::read_to_string(&target_path).unwrap(),
+        r#"{"model":"restored"}"#
+    );
+
+    let backups = crate::db::get_all_backups(&conn).unwrap();
+    assert_eq!(backups.len(), 1);
+    assert_eq!(result.backup_id, Some(backups[0].id.clone()));
+    assert_eq!(backups[0].operation_type, "restore");
+
+    let operation_backup_id: Option<String> = conn
+        .query_row(
+            "SELECT backup_id FROM operations WHERE id = ?1",
+            [&result.operation_id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(operation_backup_id, result.backup_id);
+
+    fs::remove_dir_all(&test_root).unwrap();
+}
+
+#[test]
+fn preview_apply_model_profile_rejects_formats_not_declared_by_adapter() {
+    let preview =
+        crate::operations::preview_operation(crate::operations::PreviewOperationRequest {
+            operation_type: "apply-model-profile".to_string(),
+            target_id: Some("profile-1".to_string()),
+            target_name: "OpenAI Default".to_string(),
+            target_type: "Model Profile".to_string(),
+            target_path: "~/.opencode/config.json".to_string(),
+            source_path: None,
+            official: false,
+            risk_level: Some("medium".to_string()),
+            platform_id: Some("opencode".to_string()),
+        })
+        .unwrap();
+
+    assert!(!preview.supported);
+    assert!(preview
+        .risks
+        .iter()
+        .any(|risk| risk.contains("格式") || risk.contains("adapter")));
 }

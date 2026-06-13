@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import KpiCard from '../components/KpiCard';
 import Badge from '../components/Badge';
-import type { Platform, Asset, Finding, ModelBinding } from '../types';
+import type { AssetFilterId, NavPage, Platform, Asset, Finding, ModelBinding } from '../types';
 
 interface OverviewPageProps {
   platforms: Platform[];
@@ -14,6 +14,7 @@ interface OverviewPageProps {
   findings: Finding[];
   modelBindings: ModelBinding[];
   onSelectPlatform: (p: Platform) => void;
+  onNavigate: (page: NavPage, options?: { assetFilter?: AssetFilterId }) => void;
 }
 
 const platformIcons: Record<string, React.ElementType> = {
@@ -24,7 +25,7 @@ const platformIcons: Record<string, React.ElementType> = {
   openclaw: PawPrint,
 };
 
-export default function OverviewPage({ platforms, assets, findings, modelBindings, onSelectPlatform }: OverviewPageProps) {
+export default function OverviewPage({ platforms, assets, findings, modelBindings, onSelectPlatform, onNavigate }: OverviewPageProps) {
   const [selectedFinding, setSelectedFinding] = useState<string | null>(null);
 
   const totalAssets = assets.length;
@@ -121,7 +122,10 @@ export default function OverviewPage({ platforms, assets, findings, modelBinding
               </div>
             )}
             <div className="px-5 py-3 border-t border-gray-100">
-              <button className="text-sm text-blue-600 font-medium hover:text-blue-700 flex items-center gap-1 transition-colors">
+              <button
+                onClick={() => onNavigate('platforms')}
+                className="text-sm text-blue-600 font-medium hover:text-blue-700 flex items-center gap-1 transition-colors"
+              >
                 查看所有平台 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -180,7 +184,10 @@ export default function OverviewPage({ platforms, assets, findings, modelBinding
               </div>
             )}
             <div className="px-5 py-3 border-t border-gray-100">
-              <button className="text-sm text-blue-600 font-medium hover:text-blue-700 flex items-center gap-1 transition-colors">
+              <button
+                onClick={() => onNavigate('assets', { assetFilter: 'needs-review' })}
+                className="text-sm text-blue-600 font-medium hover:text-blue-700 flex items-center gap-1 transition-colors"
+              >
                 查看所有需要检查 <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -231,7 +238,10 @@ export default function OverviewPage({ platforms, assets, findings, modelBinding
             </div>
           )}
           <div className="px-5 py-3 border-t border-gray-100">
-            <button className="text-sm text-blue-600 font-medium hover:text-blue-700 flex items-center gap-1 transition-colors">
+            <button
+              onClick={() => onNavigate('models')}
+              className="text-sm text-blue-600 font-medium hover:text-blue-700 flex items-center gap-1 transition-colors"
+            >
               管理模型 <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>

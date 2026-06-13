@@ -1,6 +1,6 @@
 [package]
 name = "agent-assets-manager"
-version = "0.1.0"
+version = "0.1.1"
 description = "Agent Assets Manager - Mac-first local control center for AI agent assets"
 authors = ["you"]
 edition = "2021"
@@ -49,6 +49,7 @@ env_logger = "0.11"
 
 # Async (not needed for MVP, kept for future)
 tokio = { version = "1", features = ["full"] }
+tauri-plugin-dialog = "2.7.1"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

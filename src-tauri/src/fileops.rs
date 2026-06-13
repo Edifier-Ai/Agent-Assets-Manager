@@ -1,9 +1,9 @@
-use std::fs;
-use std::path::{Path, PathBuf};
-use sha2::{Sha256, Digest};
+use crate::db::Backup;
 use chrono::Utc;
 use rusqlite::Connection;
-use crate::db::Backup;
+use sha2::{Digest, Sha256};
+use std::fs;
+use std::path::{Path, PathBuf};
 
 pub struct FileMutationResult {
     pub destination_path: String,
@@ -12,7 +12,7 @@ pub struct FileMutationResult {
 
 pub fn get_trash_dir() -> PathBuf {
     let trash = dirs::data_dir()
-        .unwrap_or_else(|| std::env::current_dir().unwrap())
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| std::env::temp_dir()))
         .join("Agent Assets Manager")
         .join("Trash");
     fs::create_dir_all(&trash).ok();
@@ -21,7 +21,7 @@ pub fn get_trash_dir() -> PathBuf {
 
 pub fn get_backup_dir() -> PathBuf {
     let backup = dirs::data_dir()
-        .unwrap_or_else(|| std::env::current_dir().unwrap())
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| std::env::temp_dir()))
         .join("Agent Assets Manager")
         .join("Backups");
     fs::create_dir_all(&backup).ok();
@@ -48,25 +48,22 @@ pub fn move_to_trash_with_operation(
         return Err(format!("路径不存在: {}", path_str));
     }
     let trash = get_trash_dir();
-    let name = src.file_name()
+    let name = src
+        .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "unknown".to_string());
-    let timestamp = Utc::now().timestamp();
-    let dest = trash.join(format!("{}-{}", name, timestamp));
-    
-    // Copy first, then remove original (safer than direct move)
-    if src.is_dir() {
-        copy_dir_all(&src, &dest).map_err(|e| e.to_string())?;
-        fs::remove_dir_all(&src).map_err(|e| e.to_string())?;
-    } else {
-        fs::copy(&src, &dest).map_err(|e| e.to_string())?;
-        fs::remove_file(&src).map_err(|e| e.to_string())?;
-    }
-    
+    let timestamp = Utc::now().timestamp_nanos_opt().unwrap_or_default();
+    let dest = unique_destination(&trash, &format!("{}-{}", name, timestamp));
+
+    move_by_copy_then_remove(&src, &dest)?;
+
     // Record in database
     let hash = sha256_file(&dest);
     let backup = Backup {
-        id: format!("backup-{}", timestamp),
+        id: format!(
+            "backup-{}",
+            Utc::now().timestamp_nanos_opt().unwrap_or_default()
+        ),
         operation_id: operation_id.to_string(),
         operation_type: "delete".to_string(),
         original_path: path_str.to_string(),
@@ -75,7 +72,7 @@ pub fn move_to_trash_with_operation(
         created_at: Utc::now().to_rfc3339(),
     };
     crate::db::insert_backup(conn, &backup).map_err(|e| e.to_string())?;
-    
+
     Ok(FileMutationResult {
         destination_path: dest.to_string_lossy().to_string(),
         backup,
@@ -88,34 +85,30 @@ pub fn create_backup(path_str: &str) -> Result<String, String> {
         return Err(format!("路径不存在: {}", path_str));
     }
     let backup_dir = get_backup_dir();
-    let name = src.file_name()
+    let name = src
+        .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "unknown".to_string());
-    let timestamp = Utc::now().timestamp();
-    let dest = backup_dir.join(format!("{}-backup-{}", name, timestamp));
-    
+    let timestamp = Utc::now().timestamp_nanos_opt().unwrap_or_default();
+    let dest = unique_destination(&backup_dir, &format!("{}-backup-{}", name, timestamp));
+
     if src.is_dir() {
         copy_dir_all(&src, &dest).map_err(|e| e.to_string())?;
     } else {
         fs::copy(&src, &dest).map_err(|e| e.to_string())?;
     }
-    
+
     Ok(dest.to_string_lossy().to_string())
 }
 
 pub fn restore_from_backup(backup_path: &str, original_path: &str) -> Result<(), String> {
     let backup = PathBuf::from(backup_path);
     let original = expand_home(original_path);
-    
+
     if !backup.exists() {
         return Err("备份文件不存在".to_string());
     }
-    
-    // If original exists, back it up first
-    if original.exists() {
-        let _ = create_backup(original_path);
-    }
-    
+
     if backup.is_dir() {
         if original.exists() {
             fs::remove_dir_all(&original).map_err(|e| e.to_string())?;
@@ -124,7 +117,37 @@ pub fn restore_from_backup(backup_path: &str, original_path: &str) -> Result<(),
     } else {
         fs::copy(&backup, &original).map_err(|e| e.to_string())?;
     }
-    
+
+    Ok(())
+}
+
+fn unique_destination(parent: &Path, base_name: &str) -> PathBuf {
+    let mut candidate = parent.join(base_name);
+    let mut suffix = 1;
+
+    while candidate.exists() {
+        candidate = parent.join(format!("{base_name}-{suffix}"));
+        suffix += 1;
+    }
+
+    candidate
+}
+
+fn move_by_copy_then_remove(src: &Path, dest: &Path) -> Result<(), String> {
+    if src.is_dir() {
+        copy_dir_all(src, dest).map_err(|e| e.to_string())?;
+        if let Err(error) = fs::remove_dir_all(src) {
+            let _ = fs::remove_dir_all(dest);
+            return Err(error.to_string());
+        }
+    } else {
+        fs::copy(src, dest).map_err(|e| e.to_string())?;
+        if let Err(error) = fs::remove_file(src) {
+            let _ = fs::remove_file(dest);
+            return Err(error.to_string());
+        }
+    }
+
     Ok(())
 }
 
@@ -162,31 +185,29 @@ pub fn disable_asset_with_operation(
     if !src.exists() {
         return Err(format!("路径不存在: {}", path_str));
     }
-    
+
     let disabled_dir = dirs::data_dir()
-        .unwrap_or_else(|| std::env::current_dir().unwrap())
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| std::env::temp_dir()))
         .join("Agent Assets Manager")
         .join("Disabled");
     fs::create_dir_all(&disabled_dir).ok();
-    
-    let name = src.file_name()
+
+    let name = src
+        .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "unknown".to_string());
-    let timestamp = Utc::now().timestamp();
-    let dest = disabled_dir.join(format!("{}-disabled-{}", name, timestamp));
-    
-    if src.is_dir() {
-        copy_dir_all(&src, &dest).map_err(|e| e.to_string())?;
-        fs::remove_dir_all(&src).map_err(|e| e.to_string())?;
-    } else {
-        fs::copy(&src, &dest).map_err(|e| e.to_string())?;
-        fs::remove_file(&src).map_err(|e| e.to_string())?;
-    }
-    
+    let timestamp = Utc::now().timestamp_nanos_opt().unwrap_or_default();
+    let dest = unique_destination(&disabled_dir, &format!("{}-disabled-{}", name, timestamp));
+
+    move_by_copy_then_remove(&src, &dest)?;
+
     // Record backup
     let hash = sha256_file(&dest);
     let backup = crate::db::Backup {
-        id: format!("backup-{}", timestamp),
+        id: format!(
+            "backup-{}",
+            Utc::now().timestamp_nanos_opt().unwrap_or_default()
+        ),
         operation_id: operation_id.to_string(),
         operation_type: "disable".to_string(),
         original_path: path_str.to_string(),
@@ -195,7 +216,7 @@ pub fn disable_asset_with_operation(
         created_at: Utc::now().to_rfc3339(),
     };
     crate::db::insert_backup(conn, &backup).map_err(|e| e.to_string())?;
-    
+
     Ok(FileMutationResult {
         destination_path: dest.to_string_lossy().to_string(),
         backup,
@@ -203,7 +224,11 @@ pub fn disable_asset_with_operation(
 }
 
 pub fn is_sensitive_file(path: &str) -> bool {
-    let lower = path.to_lowercase();
+    let lower = Path::new(path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(path)
+        .to_lowercase();
     lower.ends_with(".env")
         || lower.contains("secret")
         || lower.contains("private")

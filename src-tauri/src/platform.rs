@@ -46,7 +46,6 @@ impl PlatformKind {
             PlatformKind::GenericCli => "Generic CLI",
         }
     }
-
 }
 
 #[derive(Debug, Serialize)]

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapModelProfileDto, mapPlatformDto, mapScanRunDto, mapSettingsDto } from './index';
+import { mapModelProfileDto, mapPlatformDto, mapSaveSettingsInput, mapScanRunDto, mapSettingsDto } from './index';
 
 describe('platform DTO mapping', () => {
   it('maps snake_case platform fields into camelCase UI fields', () => {
@@ -72,6 +72,24 @@ describe('settings DTO mapping', () => {
     expect(mapped.dbLocation).toBe('/tmp/data.db');
     expect(mapped.trashLocation).toBe('/tmp/Trash');
     expect(mapped.securityLevel).toBe('strict');
+  });
+
+  it('maps all editable settings into save request fields', () => {
+    const mapped = mapSaveSettingsInput({
+      theme: 'dark',
+      scanPaths: ['/Users/test/.codex', '/Users/test/Projects'],
+      includeProjectLocal: false,
+      enableDeepScan: true,
+      dbLocation: '/Users/test/Library/Application Support/Agent Assets Manager/data.db',
+      trashLocation: '/Users/test/Library/Application Support/Agent Assets Manager/Trash',
+    });
+
+    expect(mapped.scan_paths).toEqual(['/Users/test/.codex', '/Users/test/Projects']);
+    expect(mapped.include_project_local).toBe(false);
+    expect(mapped.enable_deep_scan).toBe(true);
+    expect(mapped.db_location).toBe('/Users/test/Library/Application Support/Agent Assets Manager/data.db');
+    expect(mapped.trash_location).toBe('/Users/test/Library/Application Support/Agent Assets Manager/Trash');
+    expect(mapped.theme).toBe('dark');
   });
 });
 
