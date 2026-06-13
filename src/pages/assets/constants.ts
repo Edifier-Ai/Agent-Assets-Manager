@@ -26,10 +26,14 @@ export const assetTypeOrder: AssetType[] = [
 export const platformTargets: PlatformTarget[] = [
   { id: 'codex', name: 'Codex', kind: 'codex' },
   { id: 'claude', name: 'Claude', kind: 'claude' },
+  { id: 'opencode', name: 'OpenCode', kind: 'opencode' },
+  { id: 'hermes', name: 'Hermes', kind: 'hermes' },
+  { id: 'openclaw', name: 'OpenClaw', kind: 'openclaw' },
   { id: 'kimi', name: 'Kimi', kind: 'kimi' },
   { id: 'gemini', name: 'Gemini', kind: 'gemini' },
-  { id: 'cursor', name: 'Cursor', kind: 'cursor' },
   { id: 'qwen', name: 'Qwen', kind: 'qwen' },
+  { id: 'cursor', name: 'Cursor', kind: 'cursor' },
+  { id: 'trae', name: 'Trae', kind: 'trae' },
 ];
 
 export const assetTypeSubdirByPlatform: Partial<Record<string, Partial<Record<AssetType, string>>>> = {

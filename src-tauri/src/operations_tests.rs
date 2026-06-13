@@ -354,6 +354,106 @@ fn execute_install_asset_copies_source_and_records_installation() {
 }
 
 #[test]
+fn execute_install_asset_replaces_existing_skill_directory_and_records_backup() {
+    let test_root = std::env::temp_dir().join(format!(
+        "agent-assets-manager-install-skill-dir-{}",
+        chrono::Utc::now().timestamp_nanos_opt().unwrap()
+    ));
+    fs::create_dir_all(&test_root).unwrap();
+
+    let db_path = test_root.join("data.db");
+    crate::db::init_db(&db_path).unwrap();
+    let conn = rusqlite::Connection::open(&db_path).unwrap();
+
+    crate::db::insert_platform(
+        &conn,
+        &crate::db::Platform {
+            id: "kimi".to_string(),
+            name: "Kimi".to_string(),
+            kind: "kimi".to_string(),
+            cli_path: None,
+            version: None,
+            config_roots: vec![test_root.join("kimi").to_string_lossy().to_string()],
+            writable: "partial".to_string(),
+            detected_at: "2026-06-13T10:00:00Z".to_string(),
+            status: "active".to_string(),
+            asset_count: 0,
+            warning_count: 0,
+        },
+    )
+    .unwrap();
+
+    let source_path = test_root.join("codex").join("skills").join("review");
+    let target_path = test_root.join("kimi").join("skills").join("review");
+    fs::create_dir_all(&source_path).unwrap();
+    fs::create_dir_all(&target_path).unwrap();
+    fs::write(source_path.join("SKILL.md"), "# New Review\n").unwrap();
+    fs::write(source_path.join("notes.md"), "new notes\n").unwrap();
+    fs::write(target_path.join("SKILL.md"), "# Old Review\n").unwrap();
+
+    crate::db::insert_asset(
+        &conn,
+        &crate::db::Asset {
+            id: "asset-skill-review".to_string(),
+            asset_type: "Skill".to_string(),
+            name: "review".to_string(),
+            description: Some("review skill".to_string()),
+            author: Some("Local".to_string()),
+            version: Some("0.1.0".to_string()),
+            source: "test".to_string(),
+            canonical_hash: None,
+            directory_hash: Some("dir-hash-new".to_string()),
+            risk_level: "medium".to_string(),
+            status: "installed,user-installed".to_string(),
+            created_at: "2026-06-13T10:00:00Z".to_string(),
+            updated_at: "2026-06-13T10:00:00Z".to_string(),
+            installations: Vec::new(),
+        },
+    )
+    .unwrap();
+
+    let result = crate::operations::execute_operation(
+        &conn,
+        crate::operations::ExecuteOperationRequest {
+            preview: crate::operations::PreviewOperationRequest {
+                operation_type: "install-asset".to_string(),
+                target_id: Some("asset-skill-review".to_string()),
+                target_name: "review".to_string(),
+                target_type: "Skill".to_string(),
+                target_path: target_path.to_string_lossy().to_string(),
+                source_path: Some(source_path.to_string_lossy().to_string()),
+                official: false,
+                risk_level: Some("medium".to_string()),
+                platform_id: Some("kimi".to_string()),
+            },
+        },
+    )
+    .unwrap();
+
+    assert_eq!(result.operation_type, "install-asset");
+    assert_eq!(
+        fs::read_to_string(target_path.join("SKILL.md")).unwrap(),
+        "# New Review\n"
+    );
+    assert_eq!(
+        fs::read_to_string(target_path.join("notes.md")).unwrap(),
+        "new notes\n"
+    );
+
+    let backups = crate::db::get_all_backups(&conn).unwrap();
+    assert_eq!(backups.len(), 1);
+    assert!(!backups[0].hash.is_empty());
+    assert_eq!(result.backup_id, Some(backups[0].id.clone()));
+    assert_eq!(
+        fs::read_to_string(std::path::Path::new(&backups[0].backup_path).join("SKILL.md"))
+            .unwrap(),
+        "# Old Review\n"
+    );
+
+    fs::remove_dir_all(&test_root).unwrap();
+}
+
+#[test]
 fn preview_skill_sync_plan_uses_selected_source_platform_and_adapter_target_paths() {
     let test_root = std::env::temp_dir().join(format!(
         "agent-assets-manager-sync-preview-{}",

@@ -4,7 +4,7 @@ import Badge from './Badge';
 import DropdownMenu from './DropdownMenu';
 import PlatformInstallButtons from './PlatformInstallButtons';
 import Tooltip from './Tooltip';
-import { deriveSource, getAssetTypeLabel, getFileName } from '../utils';
+import { deriveSource, deriveSourceDetail, getAssetTypeLabel, getFileName } from '../utils';
 import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
 import { getPrimaryPath } from '../pages/assets/logic';
 import { invoke } from '@tauri-apps/api/core';
@@ -43,6 +43,7 @@ export default function AssetCard({
   const copy = useCopyToClipboard();
   const primaryPath = getPrimaryPath(asset);
   const source = deriveSource(asset);
+  const sourceDetail = deriveSourceDetail(asset);
   const hasWarning = asset.status.some((s) => warningStatuses.has(s));
   const warningLabel = asset.status.filter((s) => warningStatuses.has(s)).map((s) => {
     if (s === 'needs-review') return '需要检查';
@@ -118,9 +119,22 @@ export default function AssetCard({
           <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600 whitespace-nowrap">
             {getAssetTypeLabel(asset.type)}
           </span>
-          <span className="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600 whitespace-nowrap truncate max-w-[120px]" title={source}>
-            {source}
-          </span>
+          <Tooltip content={
+            sourceDetail.length > 1 ? (
+              <div className="space-y-1">
+                <div className="font-medium">安装来源</div>
+                {sourceDetail.map((detail, idx) => (
+                  <div key={idx} className="text-xs">
+                    {detail.platform} · {detail.scope}
+                  </div>
+                ))}
+              </div>
+            ) : source
+          }>
+            <span className="rounded-md bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-600 whitespace-nowrap truncate max-w-[120px]">
+              {source}
+            </span>
+          </Tooltip>
           {asset.riskLevel === 'high' && <Badge risk="high" />}
         </div>
         <div className="flex items-center gap-0.5">

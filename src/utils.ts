@@ -101,12 +101,20 @@ export function deriveSource(asset: { source: string; installations: Array<{ pla
   if (asset.source && asset.source !== 'unknown' && asset.source !== '') {
     return asset.source;
   }
-  const inst = asset.installations[0];
-  if (!inst) return '本机';
-  const platform = inst.platformName || '本机';
-  if (inst.projectLocal || inst.scope === 'project') return `${platform} 项目级`;
-  if (inst.scope === 'global' || inst.scope === 'user') return `${platform} 全局`;
-  return platform;
+  if (asset.installations.length === 0) return '本机';
+  const platforms = asset.installations.map((inst) => inst.platformName || '本机');
+  const uniquePlatforms = [...new Set(platforms)];
+  if (uniquePlatforms.length === 1) return uniquePlatforms[0];
+  if (uniquePlatforms.length <= 3) return uniquePlatforms.join('、');
+  return `${uniquePlatforms[0]} 等 ${uniquePlatforms.length} 个平台`;
+}
+
+export function deriveSourceDetail(asset: { source: string; installations: Array<{ platformName: string; scope: string; projectLocal?: boolean; path: string }> }): Array<{ platform: string; scope: string; path: string }> {
+  return asset.installations.map((inst) => ({
+    platform: inst.platformName || '本机',
+    scope: inst.projectLocal ? '项目级' : inst.scope === 'global' || inst.scope === 'user' ? '全局' : inst.scope,
+    path: inst.path,
+  }));
 }
 
 export function getFileName(path: string): string {

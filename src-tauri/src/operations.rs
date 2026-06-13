@@ -479,7 +479,7 @@ fn backup_existing_target(
     }
 
     let backup_path = fileops::create_backup(target_path)?;
-    let hash = sha256_file(Path::new(&backup_path))?;
+    let hash = sha256_path(Path::new(&backup_path))?;
     let backup = db::Backup {
         id: format!(
             "backup-{}",
@@ -510,11 +510,57 @@ fn config_format_for_path(path: &str) -> Option<String> {
     }
 }
 
-fn sha256_file(path: &Path) -> Result<String, String> {
+fn sha256_path(path: &Path) -> Result<String, String> {
+    if path.is_dir() {
+        return sha256_directory(path);
+    }
+
     let data = fs::read(path).map_err(|e| e.to_string())?;
     let mut hasher = Sha256::new();
     hasher.update(&data);
     Ok(hex::encode(hasher.finalize()))
+}
+
+fn sha256_directory(path: &Path) -> Result<String, String> {
+    let mut files = Vec::new();
+    collect_directory_files(path, path, &mut files)?;
+    files.sort_by(|a, b| a.0.cmp(&b.0));
+
+    let mut hasher = Sha256::new();
+    for (relative_path, file_path) in files {
+        hasher.update(relative_path.as_bytes());
+        hasher.update([0]);
+        let data = fs::read(&file_path).map_err(|e| e.to_string())?;
+        hasher.update(&data);
+        hasher.update([0]);
+    }
+
+    Ok(hex::encode(hasher.finalize()))
+}
+
+fn collect_directory_files(
+    root: &Path,
+    current: &Path,
+    files: &mut Vec<(String, std::path::PathBuf)>,
+) -> Result<(), String> {
+    for entry in fs::read_dir(current).map_err(|e| e.to_string())? {
+        let entry = entry.map_err(|e| e.to_string())?;
+        let path = entry.path();
+        let file_type = entry.file_type().map_err(|e| e.to_string())?;
+
+        if file_type.is_dir() {
+            collect_directory_files(root, &path, files)?;
+        } else if file_type.is_file() {
+            let relative_path = path
+                .strip_prefix(root)
+                .map_err(|e| e.to_string())?
+                .to_string_lossy()
+                .to_string();
+            files.push((relative_path, path));
+        }
+    }
+
+    Ok(())
 }
 
 fn write_model_profile_to_target(

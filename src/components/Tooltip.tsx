@@ -1,8 +1,8 @@
 import { cloneElement, useId, useRef, useState } from 'react';
-import type { ReactElement } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 
 interface TooltipProps {
-  content: string;
+  content: ReactNode;
   children: ReactElement;
   side?: 'top' | 'bottom' | 'left' | 'right';
   delay?: number;
@@ -36,7 +36,7 @@ export default function Tooltip({ content, children, side = 'top', delay = 300 }
         <span
           id={id}
           role="tooltip"
-          className={`absolute z-50 whitespace-nowrap bg-gray-900 text-white text-xs px-2 py-1 rounded shadow-lg pointer-events-none ${positionClasses[side]}`}
+          className={`absolute z-50 bg-gray-900 text-white text-xs px-2 py-1.5 rounded shadow-lg pointer-events-none ${positionClasses[side]}`}
         >
           {content}
         </span>
