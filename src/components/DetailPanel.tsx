@@ -1,4 +1,6 @@
 import { X, Copy, FolderOpen, CheckCircle, Pencil, Shield, Eye } from 'lucide-react';
+import { useCopyToClipboard } from '../hooks/useCopyToClipboard';
+import { invoke } from '@tauri-apps/api/core';
 import type { Platform } from '../types';
 
 interface DetailPanelProps {
@@ -7,6 +9,8 @@ interface DetailPanelProps {
 }
 
 export default function DetailPanel({ platform, onClose }: DetailPanelProps) {
+  const copy = useCopyToClipboard();
+
   if (!platform) {
     return (
       <div className="detail-panel w-80 p-6 flex items-center justify-center">
@@ -50,7 +54,7 @@ export default function DetailPanel({ platform, onClose }: DetailPanelProps) {
             <code className="flex-1 text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg break-all">
               {platform.cliPath}
             </code>
-            <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-400">
+            <button onClick={() => copy(platform.cliPath, 'CLI 路径')} className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-400">
               <Copy className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -67,13 +71,16 @@ export default function DetailPanel({ platform, onClose }: DetailPanelProps) {
                 <code className="flex-1 text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg break-all">
                   {root}
                 </code>
-                <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-400">
+                <button onClick={() => copy(root, '配置路径')} className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-400">
                   <Copy className="w-3.5 h-3.5" />
                 </button>
               </div>
             ))}
           </div>
-          <button className="mt-2 flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors border border-gray-200">
+          <button
+            onClick={() => { void invoke('plugin:opener|reveal_item_in_dir', { path: platform.configRoots[0] }); }}
+            className="mt-2 flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-50 transition-colors border border-gray-200"
+          >
             <FolderOpen className="w-3.5 h-3.5" />
             在 Finder 中显示
           </button>

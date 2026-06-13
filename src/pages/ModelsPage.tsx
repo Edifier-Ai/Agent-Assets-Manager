@@ -13,6 +13,7 @@ interface ModelsPageProps {
   platforms: Platform[];
   modelBindings: ModelBinding[];
   onRefresh?: () => Promise<void>;
+  onNavigate?: (page: string) => void;
 }
 
 export function supportsApplyPreview(platform?: Platform): boolean {
@@ -35,7 +36,7 @@ export function getApplySupportLabel(platform?: Platform): string {
   return '支持应用预览';
 }
 
-export default function ModelsPage({ platforms, modelBindings, onRefresh }: ModelsPageProps) {
+export default function ModelsPage({ platforms, modelBindings, onRefresh, onNavigate }: ModelsPageProps) {
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<ModelProfile[]>([]);
   const [loadingProfiles, setLoadingProfiles] = useState(true);
@@ -50,34 +51,24 @@ export default function ModelsPage({ platforms, modelBindings, onRefresh }: Mode
     [platforms],
   );
 
-  useEffect(() => {
-    let active = true;
-
+  const loadProfiles = () => {
     setLoadingProfiles(true);
+    setProfilesError(null);
     api.getModelProfiles()
       .then((rows) => {
-        if (!active) {
-          return;
-        }
         setProfiles(rows);
-        setProfilesError(null);
       })
       .catch((error) => {
-        if (!active) {
-          return;
-        }
         setProfiles([]);
         setProfilesError(error instanceof Error ? error.message : '加载模型 Profiles 失败');
       })
       .finally(() => {
-        if (active) {
-          setLoadingProfiles(false);
-        }
+        setLoadingProfiles(false);
       });
+  };
 
-    return () => {
-      active = false;
-    };
+  useEffect(() => {
+    loadProfiles();
   }, []);
 
   const handlePreviewApply = async (profile: ModelProfile, binding: ModelBinding) => {
@@ -207,13 +198,27 @@ export default function ModelsPage({ platforms, modelBindings, onRefresh }: Mode
               </div>
             )}
             {!loadingProfiles && profilesError && (
-              <div className="col-span-full p-6 rounded-xl border border-red-100 bg-red-50 text-sm text-red-600">
-                {profilesError}
+              <div className="col-span-full p-6 rounded-xl border border-red-100 bg-red-50">
+                <div className="text-sm text-red-600 mb-3">{profilesError}</div>
+                <button
+                  onClick={loadProfiles}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-red-700 bg-white border border-red-200 hover:bg-red-50 transition-colors"
+                >
+                  重试
+                </button>
               </div>
             )}
             {!loadingProfiles && !profilesError && profiles.length === 0 && (
-              <div className="col-span-full p-6 rounded-xl border border-dashed border-gray-200 text-sm text-gray-500">
-                当前没有已持久化的模型 Profile。
+              <div className="col-span-full p-6 rounded-xl border border-dashed border-gray-200 text-center">
+                <p className="text-sm text-gray-500">扫描平台后系统会自动检测模型配置</p>
+                {onNavigate && (
+                  <button
+                    onClick={() => onNavigate('scan')}
+                    className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+                  >
+                    前往扫描
+                  </button>
+                )}
               </div>
             )}
             {!loadingProfiles && !profilesError && profiles.map((profile) => (

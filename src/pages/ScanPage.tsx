@@ -1,23 +1,19 @@
 import { useToast } from '../components/Toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ScanLine, RotateCw, FolderSearch, CheckCircle2, Loader2, Clock, Ban, X
 } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
+import ProgressOverlay from '../components/ProgressOverlay';
 import * as api from '../api';
+import { formatDate } from '../utils';
 import type { AppSettings, ScanRun } from '../types';
 
 interface ScanPageProps {
   scanRuns: ScanRun[];
   settings?: AppSettings;
   onRefresh: () => Promise<void>;
-}
-
-export function formatScanTime(value: string): string {
-  return new Date(value).toLocaleString('zh-CN', {
-    hour12: false,
-  });
 }
 
 export function isScanRunComplete(run: Pick<ScanRun, 'status'>): boolean {
@@ -49,16 +45,25 @@ export default function ScanPage({ scanRuns, settings, onRefresh }: ScanPageProp
   const [scanRun, setScanRun] = useState<ScanRun | null>(scanRuns[0] || null);
   const [showHistory, setShowHistory] = useState(false);
   const [deepScanRoots, setDeepScanRoots] = useState<string[]>([]);
+  const cancelledRef = useRef(false);
   const { showToast } = useToast();
 
   useEffect(() => {
     setScanRun(scanRuns[0] || null);
   }, [scanRuns]);
 
+  const cancelScan = () => {
+    cancelledRef.current = true;
+    setIsScanning(false);
+    showToast('扫描已中断', 'info');
+  };
+
   const startScan = async () => {
+    cancelledRef.current = false;
     setIsScanning(true);
     try {
       await api.scanAssets({ scanRoots: deepScanRoots });
+      if (cancelledRef.current) return;
       const latestRuns = await api.getScanRuns();
       const latestRun = latestRuns[0] || null;
       setScanRun(latestRun);
@@ -155,19 +160,13 @@ export default function ScanPage({ scanRuns, settings, onRefresh }: ScanPageProp
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="section-card overflow-hidden"
+              className="overflow-hidden"
             >
-              <div className="px-5 py-4 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                  <ScanLine className="w-4 h-4 text-blue-600 animate-pulse" />
-                  <h3 className="font-semibold text-gray-900">正在执行真实扫描...</h3>
-                </div>
-              </div>
-              <div className="p-5">
-                <div className="rounded-xl bg-blue-50 border border-blue-100 p-4 text-sm text-blue-900">
-                  扫描结果将由后端写入 SQLite；完成后，下方“上次扫描结果”和“扫描历史”会显示最新的真实 scan run 与 scan steps。
-                </div>
-              </div>
+              <ProgressOverlay
+                label="正在扫描本地资产..."
+                indeterminate
+                onCancel={cancelScan}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -323,7 +322,7 @@ export default function ScanPage({ scanRuns, settings, onRefresh }: ScanPageProp
                     {scanRuns.map((run) => (
                       <tr key={run.id} className="border-t border-gray-50">
                         <td className="px-5 py-3 text-gray-600">
-                          {formatScanTime(run.completedAt || run.startedAt)}
+                          {formatDate(run.completedAt || run.startedAt)}
                         </td>
                         <td className="px-5 py-3">{renderStatus(run.status)}</td>
                         <td className="px-5 py-3 text-gray-600">{run.platformsFound}</td>

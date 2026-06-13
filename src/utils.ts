@@ -97,6 +97,24 @@ export function getAssetTypeLabel(type: string): string {
   return map[type] || type;
 }
 
+export function deriveSource(asset: { source: string; installations: Array<{ platformName: string; scope: string; projectLocal?: boolean }> }): string {
+  if (asset.source && asset.source !== 'unknown' && asset.source !== '') {
+    return asset.source;
+  }
+  const inst = asset.installations[0];
+  if (!inst) return '本机';
+  const platform = inst.platformName || '本机';
+  if (inst.projectLocal || inst.scope === 'project') return `${platform} 项目级`;
+  if (inst.scope === 'global' || inst.scope === 'user') return `${platform} 全局`;
+  return platform;
+}
+
+export function getFileName(path: string): string {
+  if (!path) return '';
+  const parts = path.replace(/\\/g, '/').split('/');
+  return parts[parts.length - 1] || parts[parts.length - 2] || path;
+}
+
 export function getKeyStorageLabel(storage: string): string {
   const map: Record<string, string> = {
     env: '环境变量',

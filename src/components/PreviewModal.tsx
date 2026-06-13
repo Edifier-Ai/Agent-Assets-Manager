@@ -1,4 +1,5 @@
 import { X, AlertTriangle, FileEdit, RotateCcw, CheckCircle, Ban } from 'lucide-react';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import type { OperationPreview } from '../types';
 
 interface PreviewModalProps {
@@ -8,13 +9,22 @@ interface PreviewModalProps {
 }
 
 export default function PreviewModal({ preview, onClose, onConfirm }: PreviewModalProps) {
+  const panelRef = useFocusTrap(onClose);
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-overlay" onClick={onClose} role="presentation">
+      <div
+        ref={panelRef}
+        className="modal-panel"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="preview-heading"
+      >
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-amber-500" />
-            <h3 className="text-lg font-semibold text-gray-900">操作预览</h3>
+            <h3 id="preview-heading" className="text-lg font-semibold text-gray-900">操作预览</h3>
           </div>
           <button
             onClick={onClose}

@@ -149,6 +149,7 @@ export default function BackupsPage({ backups, onRefresh }: BackupsPageProps) {
             <div className="p-10 text-center text-gray-400">
               <Archive className="w-8 h-8 mx-auto mb-2 text-gray-300" />
               <p className="text-sm">暂无备份记录</p>
+              <p className="text-xs text-gray-400 mt-1">对资产执行操作后系统会自动创建备份</p>
             </div>
           )}
         </div>

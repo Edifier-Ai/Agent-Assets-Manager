@@ -5,6 +5,7 @@ import {
   Layers, Box, AlertTriangle, Copy
 } from 'lucide-react';
 import * as api from '../api';
+import PlatformIcon from './PlatformIcon';
 import type { ScanRun } from '../types';
 
 interface FirstRunWizardProps {
@@ -61,7 +62,7 @@ export default function FirstRunWizard({ onComplete }: FirstRunWizardProps) {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center">
-              <ScanLine className="w-5 h-5 text-white" />
+              <PlatformIcon kind="app" className="w-9 h-9" />
             </div>
             <h1 className="text-xl font-bold text-gray-900">Agent Assets Manager</h1>
           </div>

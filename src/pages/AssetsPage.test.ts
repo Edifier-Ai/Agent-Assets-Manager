@@ -5,7 +5,7 @@ import {
   buildInstallOperationRequest,
   groupAssetsByType,
   matchesAssetFilter,
-} from './AssetsPage';
+} from './assets';
 
 function makeAsset(type: Asset['type'], status: Asset['status'] = ['installed', 'enabled']): Asset {
   return {

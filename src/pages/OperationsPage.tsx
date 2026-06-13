@@ -7,6 +7,7 @@ import type { OperationLog } from '../types';
 
 interface OperationsPageProps {
   operationLogs: OperationLog[];
+  onNavigate?: (page: string) => void;
 }
 
 const OP_LABELS: Record<string, string> = {
@@ -37,7 +38,7 @@ function statusBadge(status: string) {
   );
 }
 
-export default function OperationsPage({ operationLogs }: OperationsPageProps) {
+export default function OperationsPage({ operationLogs, onNavigate }: OperationsPageProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   return (
@@ -80,7 +81,7 @@ export default function OperationsPage({ operationLogs }: OperationsPageProps) {
                   </td>
                   <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{log.targetType}</td>
                   <td className="px-5 py-3">
-                    <code className="rounded bg-gray-50 px-2 py-1 font-mono text-xs text-gray-600">
+                    <code className="rounded bg-gray-50 px-2 py-1 font-mono text-xs text-gray-600 block truncate max-w-[200px]" title={log.targetPath ?? undefined}>
                       {log.targetPath ?? '—'}
                     </code>
                   </td>
@@ -97,7 +98,16 @@ export default function OperationsPage({ operationLogs }: OperationsPageProps) {
         {operationLogs.length === 0 && (
           <div className="p-10 text-center text-gray-400">
             <History className="mx-auto mb-2 h-8 w-8 text-gray-300" />
-            <p className="text-sm">暂无操作记录。执行资产操作后会自动记录。</p>
+            <p className="text-sm">暂无操作记录</p>
+            <p className="text-xs text-gray-400 mt-1">执行资产操作后会自动记录</p>
+            {onNavigate && (
+              <button
+                onClick={() => onNavigate('assets')}
+                className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+              >
+                前往资产库
+              </button>
+            )}
           </div>
         )}
       </div>

@@ -4,8 +4,9 @@ import WindowChrome from './components/WindowChrome';
 import Sidebar from './components/Sidebar';
 import StatusBar from './components/StatusBar';
 import DetailPanel from './components/DetailPanel';
+import ConfirmDialog from './components/ConfirmDialog';
 import OverviewPage from './pages/OverviewPage';
-import AssetsPage from './pages/AssetsPage';
+import AssetsPage from './pages/assets';
 import PlatformsPage from './pages/PlatformsPage';
 import ModelsPage from './pages/ModelsPage';
 import ScanPage from './pages/ScanPage';
@@ -50,6 +51,8 @@ function AppShell() {
   const [selectedPlatform, setSelectedPlatform] = useState<Platform | null>(null);
   const [assetInitialFilter, setAssetInitialFilter] = useState<AssetFilterId>('all');
   const [firstRun, setFirstRun] = useState(false);
+  const [settingsDirty, setSettingsDirty] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<{ page: NavPage; options?: { assetFilter?: AssetFilterId } } | null>(null);
   const { showToast } = useToast();
 
   // Data states
@@ -64,6 +67,7 @@ function AppShell() {
   const [lastScanTime, setLastScanTime] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [initialLoading, setInitialLoading] = useState(true);
 
   const loadData = useCallback(async () => {
     try {
@@ -98,6 +102,8 @@ function AppShell() {
       const message = getErrorMessage(e, '无法加载本机资产数据');
       setLoadError(message);
       showToast(`加载失败：${message}`, 'error');
+    } finally {
+      setInitialLoading(false);
     }
   }, [showToast]);
 
@@ -106,11 +112,31 @@ function AppShell() {
   }, [loadData]);
 
   const handleNavigate = useCallback((page: NavPage, options?: { assetFilter?: AssetFilterId }) => {
+    if (settingsDirty && currentPage === 'settings' && page !== 'settings') {
+      setPendingNavigation({ page, options });
+      return;
+    }
     setCurrentPage(page);
     setSelectedPlatform(null);
     if (page === 'assets') {
       setAssetInitialFilter(options?.assetFilter ?? 'all');
     }
+  }, [settingsDirty, currentPage]);
+
+  const confirmNavigation = useCallback(() => {
+    if (pendingNavigation) {
+      setCurrentPage(pendingNavigation.page);
+      setSelectedPlatform(null);
+      if (pendingNavigation.page === 'assets') {
+        setAssetInitialFilter(pendingNavigation.options?.assetFilter ?? 'all');
+      }
+      setPendingNavigation(null);
+      setSettingsDirty(false);
+    }
+  }, [pendingNavigation]);
+
+  const cancelNavigation = useCallback(() => {
+    setPendingNavigation(null);
   }, []);
 
   const handleSelectPlatform = useCallback((p: Platform) => {
@@ -181,10 +207,12 @@ function AppShell() {
     scanRuns,
     settings: settings ?? undefined,
     initialFilter: currentPage === 'assets' ? assetInitialFilter : undefined,
+    initialLoading,
     onSelectPlatform: handleSelectPlatform,
     onNavigate: handleNavigate,
     onRefresh: handleRefresh,
     onSaveSettings: handleSaveSettings,
+    onDirtyChange: currentPage === 'settings' ? setSettingsDirty : undefined,
   };
 
   return (
@@ -252,6 +280,17 @@ function AppShell() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ConfirmDialog
+        open={!!pendingNavigation}
+        title="离开设置页？"
+        description="有未保存的设置更改，离开后更改将丢失。"
+        confirmLabel="离开"
+        cancelLabel="留在此页"
+        variant="warning"
+        onConfirm={confirmNavigation}
+        onCancel={cancelNavigation}
+      />
     </>
   );
 }

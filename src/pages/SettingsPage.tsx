@@ -1,18 +1,34 @@
 import { useToast } from '../components/Toast';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Folder, Database, Sun, Moon, Monitor, Shield, Save, CheckCircle2, Plus, Trash2
 } from 'lucide-react';
+import FormField from '../components/FormField';
 import type { AppSettings, SaveSettingsInput } from '../types';
 
 interface SettingsPageProps {
   settings?: AppSettings;
   onSaveSettings?: (settings: SaveSettingsInput) => Promise<void>;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 const DEFAULT_SCAN_PATHS = ['~/.codex', '~/.claude', '~/.opencode', '~/.hermes', '~/.openclaw'];
 const DEFAULT_DB_LOCATION = '~/Library/Application Support/Agent Assets Manager/data.db';
 const DEFAULT_TRASH_LOCATION = '~/Library/Application Support/Agent Assets Manager/Trash';
+
+function validatePath(value: string): string | undefined {
+  if (!value.trim()) return '路径不能为空';
+  if (!value.startsWith('~/') && !value.startsWith('/')) return '路径必须以 ~/ 或 / 开头';
+  if (value.includes('//')) return '路径不能包含连续的 //';
+  return undefined;
+}
+
+function validateDbPath(value: string): string | undefined {
+  const base = validatePath(value);
+  if (base) return base;
+  if (!value.endsWith('.db')) return '数据库路径必须以 .db 结尾';
+  return undefined;
+}
 
 export function resolveSettingsFormState(settings?: AppSettings): SaveSettingsInput {
   return {
@@ -25,7 +41,7 @@ export function resolveSettingsFormState(settings?: AppSettings): SaveSettingsIn
   };
 }
 
-export default function SettingsPage({ settings, onSaveSettings }: SettingsPageProps) {
+export default function SettingsPage({ settings, onSaveSettings, onDirtyChange }: SettingsPageProps) {
   const [theme, setTheme] = useState('system');
   const [scanPaths, setScanPaths] = useState<string[]>(DEFAULT_SCAN_PATHS);
   const [includeProjectLocal, setIncludeProjectLocal] = useState(true);
@@ -34,7 +50,24 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
   const [trashLocation, setTrashLocation] = useState(DEFAULT_TRASH_LOCATION);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const { showToast } = useToast();
+
+  const isDirty = useMemo(() => {
+    const s = resolveSettingsFormState(settings);
+    return (
+      theme !== s.theme ||
+      JSON.stringify(scanPaths) !== JSON.stringify(s.scanPaths) ||
+      includeProjectLocal !== s.includeProjectLocal ||
+      enableDeepScan !== s.enableDeepScan ||
+      dbLocation !== s.dbLocation ||
+      trashLocation !== s.trashLocation
+    );
+  }, [theme, scanPaths, includeProjectLocal, enableDeepScan, dbLocation, trashLocation, settings]);
+
+  useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   useEffect(() => {
     const nextState = resolveSettingsFormState(settings);
@@ -71,6 +104,24 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
   };
 
   const handleSave = async () => {
+    const nextErrors: Record<string, string> = {};
+    scanPaths.forEach((p, i) => {
+      if (p.trim()) {
+        const err = validatePath(p);
+        if (err) nextErrors[`scanPath-${i}`] = err;
+      }
+    });
+    const dbErr = validateDbPath(dbLocation);
+    if (dbErr) nextErrors.dbLocation = dbErr;
+    const trashErr = validatePath(trashLocation);
+    if (trashErr) nextErrors.trashLocation = trashErr;
+
+    setErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) {
+      showToast('请修正标红的输入项', 'warning');
+      return;
+    }
+
     try {
       setSaving(true);
       await onSaveSettings?.({
@@ -112,19 +163,23 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
               <div className="text-sm font-medium text-gray-700 mb-2 whitespace-nowrap">默认扫描路径</div>
               <div className="space-y-2">
                 {scanPaths.map((path, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <input
-                      value={path}
-                      onChange={(event) => updateScanPath(i, event.target.value)}
-                      className="flex-1 text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border border-transparent focus:border-gray-300 focus:outline-none"
-                    />
-                    <button
-                      onClick={() => removeScanPath(i)}
-                      className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
-                      title="移除路径"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                  <div key={i}>
+                    <div className="flex items-center gap-2">
+                      <input
+                        value={path}
+                        onChange={(event) => { updateScanPath(i, event.target.value); setErrors((e) => { const n = { ...e }; delete n[`scanPath-${i}`]; return n; }); }}
+                        onBlur={() => { if (path.trim()) { const err = validatePath(path); setErrors((e) => err ? { ...e, [`scanPath-${i}`]: err } : (() => { const n = { ...e }; delete n[`scanPath-${i}`]; return n; })()); } }}
+                        className={`flex-1 text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border focus:outline-none ${errors[`scanPath-${i}`] ? 'border-red-300 focus:border-red-400' : 'border-transparent focus:border-gray-300'}`}
+                      />
+                      <button
+                        onClick={() => removeScanPath(i)}
+                        className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors"
+                        title="移除路径"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    {errors[`scanPath-${i}`] && <p className="text-xs text-red-600 mt-1 ml-1">{errors[`scanPath-${i}`]}</p>}
                   </div>
                 ))}
                 <button
@@ -141,6 +196,8 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
               <label className="flex items-center justify-between cursor-pointer">
                 <span className="text-sm text-gray-700 whitespace-nowrap">包含项目本地路径</span>
                 <button
+                  role="switch"
+                  aria-checked={includeProjectLocal}
                   onClick={() => setIncludeProjectLocal(!includeProjectLocal)}
                   className={`w-11 h-6 rounded-full transition-colors duration-200 ${includeProjectLocal ? 'bg-gray-900' : 'bg-gray-200'}`}
                 >
@@ -150,6 +207,8 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
               <label className="flex items-center justify-between cursor-pointer">
                 <span className="text-sm text-gray-700 whitespace-nowrap">启用深度扫描</span>
                 <button
+                  role="switch"
+                  aria-checked={enableDeepScan}
                   onClick={() => setEnableDeepScan(!enableDeepScan)}
                   className={`w-11 h-6 rounded-full transition-colors duration-200 ${enableDeepScan ? 'bg-gray-900' : 'bg-gray-200'}`}
                 >
@@ -168,22 +227,22 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
             </div>
           </div>
           <div className="p-5 space-y-4">
-            <div>
-              <div className="text-sm font-medium text-gray-700 mb-1.5 whitespace-nowrap">SQLite 数据库位置</div>
+            <FormField label="SQLite 数据库位置" error={errors.dbLocation}>
               <input
                 value={dbLocation}
-                onChange={(event) => setDbLocation(event.target.value)}
-                className="block w-full text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border border-transparent focus:border-gray-300 focus:outline-none"
+                onChange={(event) => { setDbLocation(event.target.value); setErrors((e) => { const n = { ...e }; delete n.dbLocation; return n; }); }}
+                onBlur={() => { const err = validateDbPath(dbLocation); setErrors((e) => err ? { ...e, dbLocation: err } : (() => { const n = { ...e }; delete n.dbLocation; return n; })()); }}
+                className={`block w-full text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border focus:outline-none ${errors.dbLocation ? 'border-red-300 focus:border-red-400' : 'border-transparent focus:border-gray-300'}`}
               />
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-700 mb-1.5 whitespace-nowrap">应用管理回收站位置</div>
+            </FormField>
+            <FormField label="应用管理回收站位置" error={errors.trashLocation}>
               <input
                 value={trashLocation}
-                onChange={(event) => setTrashLocation(event.target.value)}
-                className="block w-full text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border border-transparent focus:border-gray-300 focus:outline-none"
+                onChange={(event) => { setTrashLocation(event.target.value); setErrors((e) => { const n = { ...e }; delete n.trashLocation; return n; }); }}
+                onBlur={() => { const err = validatePath(trashLocation); setErrors((e) => err ? { ...e, trashLocation: err } : (() => { const n = { ...e }; delete n.trashLocation; return n; })()); }}
+                className={`block w-full text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border focus:outline-none ${errors.trashLocation ? 'border-red-300 focus:border-red-400' : 'border-transparent focus:border-gray-300'}`}
               />
-            </div>
+            </FormField>
           </div>
         </div>
 
@@ -233,7 +292,13 @@ export default function SettingsPage({ settings, onSaveSettings }: SettingsPageP
           </div>
         </div>
 
-        <div className="flex justify-end gap-3">
+        <div className="flex items-center justify-end gap-3">
+          {isDirty && (
+            <span className="flex items-center gap-1.5 text-xs text-amber-600">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              有未保存的更改
+            </span>
+          )}
           <button
             onClick={handleReset}
             className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors"
