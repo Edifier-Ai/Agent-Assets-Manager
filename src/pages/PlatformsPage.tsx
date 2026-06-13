@@ -1,17 +1,14 @@
 import { useState } from 'react';
 import {
-  Hexagon, Sun, Cloud, Feather, PawPrint, Layers, CheckCircle, Eye, Terminal
+  CheckCircle, Eye, Terminal
 } from 'lucide-react';
 import Badge from '../components/Badge';
+import PlatformIcon from '../components/PlatformIcon';
 import type { Platform } from '../types';
 
-const platformIcons: Record<string, React.ElementType> = {
-  codex: Hexagon,
-  claude: Sun,
-  opencode: Cloud,
-  hermes: Feather,
-  openclaw: PawPrint,
-};
+export function getPlatformStatusLabel(status: string): 'enabled' | 'disabled' {
+  return status === 'active' ? 'enabled' : 'disabled';
+}
 
 interface PlatformsPageProps {
   platforms: Platform[];
@@ -21,12 +18,10 @@ export default function PlatformsPage({ platforms }: PlatformsPageProps) {
   const [selected, setSelected] = useState<Platform | null>(platforms[0] || null);
 
   return (
-    <div className="flex h-full">
-      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+    <div className="platform-layout">
+      <div className="platform-list-pane">
         <div className="grid grid-cols-1 gap-4">
-          {platforms.map((p) => {
-            const Icon = platformIcons[p.kind] || Layers;
-            return (
+          {platforms.map((p) => (
               <div
                 key={p.id}
                 onClick={() => setSelected(p)}
@@ -34,11 +29,11 @@ export default function PlatformsPage({ platforms }: PlatformsPageProps) {
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-gray-900 flex items-center justify-center">
-                      <Icon className="w-6 h-6 text-white" />
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0">
+                      <PlatformIcon kind={p.kind} platformName={p.name} className="w-12 h-12" />
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900 text-lg">{p.name}</h3>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-gray-900 text-lg whitespace-nowrap">{p.name}</h3>
                       <div className="flex items-center gap-2 mt-1">
                         <Badge status={p.status === 'active' ? 'enabled' : 'disabled'} />
                         <Badge status={p.writable === 'writable' ? 'writable' : p.writable === 'readonly' ? 'readonly' : 'partial'} />
@@ -47,42 +42,38 @@ export default function PlatformsPage({ platforms }: PlatformsPageProps) {
                   </div>
                   <div className="text-right">
                     <div className="text-2xl font-bold text-gray-900">{p.assetCount}</div>
-                    <div className="text-xs text-gray-500">资产</div>
+                    <div className="text-xs text-gray-500 whitespace-nowrap">资产</div>
                   </div>
                 </div>
                 <div className="mt-4 grid grid-cols-3 gap-4 text-sm">
                   <div>
-                    <div className="text-gray-500 mb-1">CLI 路径</div>
+                    <div className="text-gray-500 mb-1 whitespace-nowrap">CLI 路径</div>
                     <code className="text-xs font-mono text-gray-700 bg-gray-50 px-2 py-1 rounded block truncate">{p.cliPath}</code>
                   </div>
                   <div>
-                    <div className="text-gray-500 mb-1">版本</div>
-                    <div className="text-gray-700 font-medium">{p.version}</div>
+                    <div className="text-gray-500 mb-1 whitespace-nowrap">版本</div>
+                    <div className="text-gray-700 font-medium whitespace-nowrap">{p.version}</div>
                   </div>
                   <div>
-                    <div className="text-gray-500 mb-1">警告</div>
+                    <div className="text-gray-500 mb-1 whitespace-nowrap">警告</div>
                     <div className={`font-medium ${p.warningCount > 0 ? 'text-amber-600' : 'text-gray-400'}`}>
                       {p.warningCount}
                     </div>
                   </div>
                 </div>
               </div>
-            );
-          })}
+          ))}
         </div>
       </div>
 
       {selected && (
-        <div className="w-80 bg-white border-l border-gray-100 overflow-y-auto p-5 shrink-0">
+        <div className="platform-detail-pane">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center">
-              {(() => {
-                const Icon = platformIcons[selected.kind] || Layers;
-                return <Icon className="w-5 h-5 text-white" />;
-              })()}
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0">
+              <PlatformIcon kind={selected.kind} platformName={selected.name} className="w-10 h-10" />
             </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">{selected.name}</h3>
+            <div className="min-w-0">
+              <h3 className="font-semibold text-gray-900 whitespace-nowrap">{selected.name}</h3>
               <p className="text-xs text-gray-400">{selected.kind}</p>
             </div>
           </div>

@@ -1,9 +1,9 @@
 crate::define_adapter!(
-    OpenCodeAdapter,
-    kind: crate::platform::PlatformKind::OpenCode,
-    binaries: ["opencode"],
-    config_roots: [".opencode", ".config/opencode"],
-    writable: "writable",
+    KimiAdapter,
+    kind: crate::platform::PlatformKind::Kimi,
+    binaries: ["kimi"],
+    config_roots: [".kimi-code"],
+    writable: "partial",
     search_specs: [
         { subdir: "skills",   pattern: "SKILL.md",  asset_type: "Skill"      },
         { subdir: "agents",   pattern: "AGENTS.md", asset_type: "Agent"      },
@@ -14,7 +14,7 @@ crate::define_adapter!(
         { subdir: "personas", pattern: ".md",        asset_type: "Persona"    }
     ],
     model_configs: [
-        { filename: "config.yaml", format: "yaml" },
-        { filename: "config.yml",  format: "yaml" }
+        { filename: "config.toml", format: "toml" },
+        { filename: "tui.toml",    format: "toml" }
     ]
 );

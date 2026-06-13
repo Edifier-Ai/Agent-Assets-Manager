@@ -15,11 +15,11 @@ interface ModelsPageProps {
   onRefresh?: () => Promise<void>;
 }
 
-function supportsApplyPreview(platform?: Platform): boolean {
+export function supportsApplyPreview(platform?: Platform): boolean {
   return Boolean(platform && platform.writable !== 'readonly');
 }
 
-function getApplySupportLabel(platform?: Platform): string {
+export function getApplySupportLabel(platform?: Platform): string {
   if (!platform) {
     return '平台信息缺失';
   }
@@ -152,10 +152,10 @@ export default function ModelsPage({ platforms, modelBindings, onRefresh }: Mode
               <tbody>
                 {modelBindings.map((mb) => (
                   <tr key={mb.id} className="table-row-hover border-t border-gray-50">
-                    <td className="px-5 py-3 font-medium text-gray-900">{mb.platformName}</td>
-                    <td className="px-5 py-3 text-gray-600">{mb.detectedProvider}</td>
+                    <td className="px-5 py-3 font-medium text-gray-900 whitespace-nowrap">{mb.platformName}</td>
+                    <td className="px-5 py-3 text-gray-600 whitespace-nowrap">{mb.detectedProvider}</td>
                     <td className="px-5 py-3">
-                      <span className="font-mono text-sm text-gray-900">{mb.detectedModelId}</span>
+                      <span className="font-mono text-sm text-gray-900 whitespace-nowrap">{mb.detectedModelId}</span>
                     </td>
                     <td className="px-5 py-3">
                       <span className="font-mono text-xs text-gray-500">{mb.detectedBaseUrl}</span>
@@ -166,12 +166,12 @@ export default function ModelsPage({ platforms, modelBindings, onRefresh }: Mode
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-1.5">
                         <Key className={`w-3.5 h-3.5 ${mb.keyPresence ? 'text-green-500' : 'text-gray-300'}`} />
-                        <span className="text-gray-600">
+                        <span className="text-gray-600 whitespace-nowrap">
                           {mb.keyPresence ? maskApiKey(mb.keySuffix || '****') : '未配置'}
                         </span>
                       </div>
                       <div className="text-xs text-gray-400 mt-0.5">
-                        存储位置：{getKeyStorageLabel(mb.keyStorage)}
+                        <span className="whitespace-nowrap">存储位置：{getKeyStorageLabel(mb.keyStorage)}</span>
                       </div>
                     </td>
                     <td className="px-5 py-3">
@@ -181,7 +181,7 @@ export default function ModelsPage({ platforms, modelBindings, onRefresh }: Mode
                         ) : (
                           <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
                         )}
-                        <span className={getValidationStatusColor(mb.validationStatus)}>
+                        <span className={`${getValidationStatusColor(mb.validationStatus)} whitespace-nowrap`}>
                           {getValidationStatusLabel(mb.validationStatus)}
                         </span>
                       </div>
@@ -224,25 +224,25 @@ export default function ModelsPage({ platforms, modelBindings, onRefresh }: Mode
               >
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-9 h-9 rounded-lg bg-gray-900 flex items-center justify-center">
-                    <Brain className="w-4.5 h-4.5 text-white" />
+                    <Brain className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <div className="font-medium text-gray-900">{profile.name}</div>
-                    <div className="text-xs text-gray-500">{profile.provider}</div>
+                <div className="font-medium text-gray-900 whitespace-nowrap">{profile.name}</div>
+                <div className="text-xs text-gray-500 whitespace-nowrap">{profile.provider}</div>
                   </div>
                 </div>
                 <div className="space-y-1.5 text-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-500">模型</span>
-                    <span className="font-mono text-xs text-gray-700">{profile.modelId}</span>
+                    <span className="text-gray-500 whitespace-nowrap">模型</span>
+                    <span className="font-mono text-xs text-gray-700 whitespace-nowrap">{profile.modelId}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Base URL</span>
+                    <span className="text-gray-500 whitespace-nowrap">Base URL</span>
                     <span className="font-mono text-xs text-gray-500 truncate max-w-[150px]">{profile.baseUrl}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Key</span>
-                    <span className="text-xs text-gray-600">{getKeyStorageLabel(profile.keyStorage)}</span>
+                    <span className="text-gray-500 whitespace-nowrap">Key</span>
+                    <span className="text-xs text-gray-600 whitespace-nowrap">{getKeyStorageLabel(profile.keyStorage)}</span>
                   </div>
                 </div>
                 {selectedProfile === profile.id && (
@@ -266,7 +266,7 @@ export default function ModelsPage({ platforms, modelBindings, onRefresh }: Mode
                           >
                             <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0">
-                                <div className="text-xs font-medium text-gray-900">{binding.platformName}</div>
+                                <div className="text-xs font-medium text-gray-900 whitespace-nowrap">{binding.platformName}</div>
                                 <div className="mt-1 text-[11px] text-gray-500">
                                   当前模型：{binding.detectedModelId}
                                 </div>
@@ -274,7 +274,7 @@ export default function ModelsPage({ platforms, modelBindings, onRefresh }: Mode
                                   {binding.configPath}
                                 </code>
                               </div>
-                              <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] ${supported ? 'bg-blue-50 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
+                              <span className={`shrink-0 rounded-full px-2 py-1 text-[11px] whitespace-nowrap ${supported ? 'bg-blue-50 text-blue-600' : 'bg-gray-200 text-gray-500'}`}>
                                 {getApplySupportLabel(platform)}
                               </span>
                             </div>
@@ -308,14 +308,14 @@ export default function ModelsPage({ platforms, modelBindings, onRefresh }: Mode
             <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 border border-amber-100">
               <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5" />
               <div className="text-sm">
-                <div className="font-medium text-amber-800">API Key 存储位置提醒</div>
+                <div className="font-medium text-amber-800 whitespace-nowrap">API Key 存储位置提醒</div>
                 <p className="text-amber-700 mt-1">OpenCode 的 API Key 存储在配置文件中（<code className="font-mono text-xs">~/.opencode/config.yaml</code>），建议迁移至环境变量或 Keychain。</p>
               </div>
             </div>
             <div className="flex items-start gap-3 p-3 rounded-lg bg-blue-50 border border-blue-100">
               <CheckCircle className="w-4 h-4 text-blue-500 mt-0.5" />
               <div className="text-sm">
-                <div className="font-medium text-blue-800">Codex 配置安全</div>
+                <div className="font-medium text-blue-800 whitespace-nowrap">Codex 配置安全</div>
                 <p className="text-blue-700 mt-1">Codex 的 API Key 存储在环境变量中，符合安全最佳实践。</p>
               </div>
             </div>

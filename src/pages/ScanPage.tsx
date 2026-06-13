@@ -14,10 +14,14 @@ interface ScanPageProps {
   onRefresh: () => Promise<void>;
 }
 
-function formatScanTime(value: string): string {
+export function formatScanTime(value: string): string {
   return new Date(value).toLocaleString('zh-CN', {
     hour12: false,
   });
+}
+
+export function isScanRunComplete(run: Pick<ScanRun, 'status'>): boolean {
+  return run.status === 'completed';
 }
 
 function renderStatus(status: ScanRun['status']) {
@@ -101,23 +105,29 @@ export default function ScanPage({ scanRuns, settings, onRefresh }: ScanPageProp
     '~/.opencode',
     '~/.hermes',
     '~/.openclaw',
+    '~/.kimi-code',
+    '~/.gemini',
+    '~/.qwen',
+    '~/.cursor',
+    '~/.trae',
+    '~/.trae-cn',
   ];
 
   return (
     <div className="flex h-full overflow-y-auto">
       <div className="flex-1 p-5 space-y-5 max-w-3xl mx-auto w-full">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">扫描</h2>
+            <h2 className="text-xl font-bold text-gray-900 whitespace-nowrap">扫描</h2>
             <p className="text-sm text-gray-500 mt-1">扫描本地 Agent 资产并更新索引</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <button
               onClick={() => setShowHistory(!showHistory)}
               className="px-3 py-2 rounded-lg text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
             >
               <Clock className="w-3.5 h-3.5 inline mr-1.5" />
-              扫描历史
+              <span className="whitespace-nowrap">扫描历史</span>
             </button>
             <button
               onClick={startScan}
@@ -127,12 +137,12 @@ export default function ScanPage({ scanRuns, settings, onRefresh }: ScanPageProp
               {isScanning ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  扫描中...
+                  <span className="whitespace-nowrap">扫描中...</span>
                 </>
               ) : (
                 <>
                   <RotateCw className="w-4 h-4" />
-                  重新扫描
+                  <span className="whitespace-nowrap">重新扫描</span>
                 </>
               )}
             </button>
@@ -167,22 +177,24 @@ export default function ScanPage({ scanRuns, settings, onRefresh }: ScanPageProp
             <div className="px-5 py-4 border-b border-gray-100">
               <h3 className="font-semibold text-gray-900">上次扫描结果</h3>
             </div>
-            <div className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="p-5 overflow-x-auto">
+              <div className="grid grid-cols-4 gap-4 min-w-[560px]">
               <div className="p-4 rounded-xl bg-gray-50">
                 <div className="text-2xl font-bold text-gray-900">{scanRun.platformsFound}</div>
-                <div className="text-xs text-gray-500 mt-1">发现平台</div>
+                <div className="text-xs text-gray-500 mt-1 whitespace-nowrap">发现平台</div>
               </div>
               <div className="p-4 rounded-xl bg-gray-50">
                 <div className="text-2xl font-bold text-gray-900">{scanRun.assetsFound}</div>
-                <div className="text-xs text-gray-500 mt-1">扫描资产</div>
+                <div className="text-xs text-gray-500 mt-1 whitespace-nowrap">扫描资产</div>
               </div>
               <div className="p-4 rounded-xl bg-gray-50">
                 <div className="text-2xl font-bold text-gray-900">{scanRun.duplicatesFound}</div>
-                <div className="text-xs text-gray-500 mt-1">重复项</div>
+                <div className="text-xs text-gray-500 mt-1 whitespace-nowrap">重复项</div>
               </div>
               <div className="p-4 rounded-xl bg-gray-50">
                 <div className="text-2xl font-bold text-gray-900">{scanRun.warningsFound}</div>
-                <div className="text-xs text-gray-500 mt-1">需要检查</div>
+                <div className="text-xs text-gray-500 mt-1 whitespace-nowrap">需要检查</div>
+              </div>
               </div>
             </div>
             {!!scanRun.steps.length && (
@@ -199,7 +211,7 @@ export default function ScanPage({ scanRuns, settings, onRefresh }: ScanPageProp
                       )}
                     </div>
                     <div className="flex-1">
-                      <div className="font-medium text-sm">{step.title}</div>
+                      <div className="font-medium text-sm whitespace-nowrap">{step.title}</div>
                       <div className="text-xs mt-0.5 text-gray-500">{step.description}</div>
                       {step.detail && <div className="text-xs mt-1 text-green-600">{step.detail}</div>}
                     </div>
@@ -226,7 +238,7 @@ export default function ScanPage({ scanRuns, settings, onRefresh }: ScanPageProp
               <div className="text-sm font-medium text-gray-700 mb-2">默认路径</div>
               <div className="space-y-1.5">
                 {[
-                  'PATH: codex, claude, opencode, hermes, openclaw',
+                  'PATH: codex, claude, opencode, hermes, openclaw, kimi, gemini, qwen, trae',
                   '/opt/homebrew/bin',
                   '/usr/local/bin',
                   '~/.local/bin',
@@ -242,7 +254,7 @@ export default function ScanPage({ scanRuns, settings, onRefresh }: ScanPageProp
                 className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-gray-600 bg-gray-50 hover:bg-gray-100 transition-colors border border-gray-200"
               >
                 <FolderSearch className="w-4 h-4" />
-                选择深度扫描目录
+                <span className="whitespace-nowrap">选择深度扫描目录</span>
               </button>
               <p className="text-xs text-gray-400 mt-2">
                 {deepScanRoots.length > 0
