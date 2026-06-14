@@ -18,7 +18,8 @@ export default function PlatformInstallButtons({
   compact = false,
 }: PlatformInstallButtonsProps) {
   const sizeClass = compact ? 'h-8 w-8' : 'h-9 w-9';
-  const iconClass = compact ? 'h-4 w-4' : 'h-5 w-5';
+  const platformIconClass = compact ? 'h-7 w-7' : 'h-8 w-8';
+  const actionIconClass = compact ? 'h-4 w-4' : 'h-5 w-5';
 
   return (
     <div className="flex items-center gap-1.5">
@@ -44,7 +45,7 @@ export default function PlatformInstallButtons({
             <PlatformIcon
               kind={target.kind}
               platformName={target.name}
-              className={`${iconClass} rounded-md transition-all ${
+              className={`${platformIconClass} rounded-md transition-all ${
                 installed
                   ? 'opacity-100'
                   : 'opacity-60'
@@ -68,7 +69,7 @@ export default function PlatformInstallButtons({
         title="安装到全部平台"
         aria-label="安装到全部平台"
       >
-        <Plus className={iconClass} />
+        <Plus className={actionIconClass} />
       </button>
     </div>
   );

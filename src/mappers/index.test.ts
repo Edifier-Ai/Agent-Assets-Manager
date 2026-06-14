@@ -64,6 +64,7 @@ describe('settings DTO mapping', () => {
       trash_location: '/tmp/Trash',
       theme: 'system',
       security_level: 'strict',
+      ignored_platform_ids: ['claude-app'],
     });
 
     expect(mapped.scanPaths).toEqual(['~/.codex']);
@@ -72,6 +73,7 @@ describe('settings DTO mapping', () => {
     expect(mapped.dbLocation).toBe('/tmp/data.db');
     expect(mapped.trashLocation).toBe('/tmp/Trash');
     expect(mapped.securityLevel).toBe('strict');
+    expect(mapped.ignoredPlatformIds).toEqual(['claude-app']);
   });
 
   it('maps all editable settings into save request fields', () => {
@@ -82,6 +84,7 @@ describe('settings DTO mapping', () => {
       enableDeepScan: true,
       dbLocation: '/Users/test/Library/Application Support/Agent Assets Manager/data.db',
       trashLocation: '/Users/test/Library/Application Support/Agent Assets Manager/Trash',
+      ignoredPlatformIds: ['claude-app', 'trae'],
     });
 
     expect(mapped.scan_paths).toEqual(['/Users/test/.codex', '/Users/test/Projects']);
@@ -90,6 +93,7 @@ describe('settings DTO mapping', () => {
     expect(mapped.db_location).toBe('/Users/test/Library/Application Support/Agent Assets Manager/data.db');
     expect(mapped.trash_location).toBe('/Users/test/Library/Application Support/Agent Assets Manager/Trash');
     expect(mapped.theme).toBe('dark');
+    expect(mapped.ignored_platform_ids).toEqual(['claude-app', 'trae']);
   });
 });
 

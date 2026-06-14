@@ -78,6 +78,7 @@ describe('api runtime contract', () => {
         enableDeepScan: true,
         dbLocation: '/tmp/dev-data.db',
         trashLocation: '/tmp/dev-trash',
+        ignoredPlatformIds: [],
       }),
     ).rejects.toThrow(UNSUPPORTED_RUNTIME_MESSAGE);
     await expect(api.previewSkillSyncPlan(['skill-1'], 'mirror')).rejects.toThrow(

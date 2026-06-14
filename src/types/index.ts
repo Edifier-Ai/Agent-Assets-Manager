@@ -202,6 +202,7 @@ export interface AppSettings {
   trashLocation: string;
   theme: string;
   securityLevel: string;
+  ignoredPlatformIds: string[];
 }
 
 export interface SaveSettingsInput {
@@ -211,6 +212,7 @@ export interface SaveSettingsInput {
   enableDeepScan: boolean;
   dbLocation: string;
   trashLocation: string;
+  ignoredPlatformIds: string[];
 }
 
 export interface BatchSyncItemPreview {

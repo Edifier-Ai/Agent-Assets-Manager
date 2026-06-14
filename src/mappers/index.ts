@@ -151,6 +151,7 @@ export interface AppSettingsDto {
   trash_location: string;
   theme: string;
   security_level: string;
+  ignored_platform_ids?: string[];
 }
 
 export interface SaveSettingsRequestDto {
@@ -160,6 +161,7 @@ export interface SaveSettingsRequestDto {
   enable_deep_scan: boolean;
   db_location: string;
   trash_location: string;
+  ignored_platform_ids: string[];
 }
 
 export interface ScanSummaryDto {
@@ -498,6 +500,7 @@ export function mapSettingsDto(dto: AppSettingsDto): AppSettings {
     trashLocation: dto.trash_location,
     theme: dto.theme,
     securityLevel: dto.security_level,
+    ignoredPlatformIds: dto.ignored_platform_ids ?? [],
   };
 }
 
@@ -518,6 +521,7 @@ export function mapSaveSettingsInput(input: SaveSettingsInput): SaveSettingsRequ
     enable_deep_scan: input.enableDeepScan,
     db_location: input.dbLocation,
     trash_location: input.trashLocation,
+    ignored_platform_ids: input.ignoredPlatformIds,
   };
 }
 

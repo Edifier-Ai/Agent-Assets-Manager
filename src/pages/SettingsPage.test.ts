@@ -15,6 +15,7 @@ describe('resolveSettingsFormState', () => {
       trashLocation: '/tmp/Trash',
       theme: 'dark',
       securityLevel: 'balanced',
+      ignoredPlatformIds: ['claude-app'],
     };
 
     expect(resolveSettingsFormState(settings)).toEqual({
@@ -24,6 +25,7 @@ describe('resolveSettingsFormState', () => {
       enableDeepScan: true,
       dbLocation: '/tmp/data.db',
       trashLocation: '/tmp/Trash',
+      ignoredPlatformIds: ['claude-app'],
     });
   });
 
@@ -42,6 +44,7 @@ describe('resolveSettingsFormState', () => {
       enableDeepScan: false,
       dbLocation: '~/Library/Application Support/Agent Assets Manager/data.db',
       trashLocation: '~/Library/Application Support/Agent Assets Manager/Trash',
+      ignoredPlatformIds: [],
     });
   });
 });

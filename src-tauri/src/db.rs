@@ -145,6 +145,7 @@ pub struct AppSettings {
     pub trash_location: String,
     pub theme: String,
     pub security_level: String,
+    pub ignored_platform_ids: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -361,6 +362,7 @@ fn default_settings(
         trash_location: trash_location.to_string(),
         theme: "system".to_string(),
         security_level: "strict".to_string(),
+        ignored_platform_ids: Vec::new(),
     }
 }
 
@@ -471,6 +473,10 @@ pub fn get_settings(
     if let Some(raw) = get_setting_value(conn, "security_level")? {
         settings.security_level = raw;
     }
+    if let Some(raw) = get_setting_value(conn, "ignored_platform_ids")? {
+        settings.ignored_platform_ids =
+            serde_json::from_str(&raw).unwrap_or_else(|_| settings.ignored_platform_ids.clone());
+    }
 
     Ok(settings)
 }
@@ -506,6 +512,11 @@ pub fn save_settings(conn: &Connection, settings: &AppSettings) -> SqlResult<()>
     tx.execute(
         "INSERT OR REPLACE INTO app_settings (key, value) VALUES ('security_level', ?1)",
         params![settings.security_level],
+    )?;
+    tx.execute(
+        "INSERT OR REPLACE INTO app_settings (key, value) VALUES ('ignored_platform_ids', ?1)",
+        params![serde_json::to_string(&settings.ignored_platform_ids)
+            .unwrap_or_else(|_| "[]".to_string())],
     )?;
     tx.commit()
 }
@@ -597,7 +608,7 @@ pub fn get_all_assets(conn: &Connection) -> SqlResult<Vec<Asset>> {
          FROM assets a
          LEFT JOIN installations i ON i.asset_id = a.id
          LEFT JOIN platforms p ON p.id = i.platform_id
-         ORDER BY a.id, i.id"
+         ORDER BY a.id, i.id",
     )?;
 
     let mut asset_map: linked_hash_map::LinkedHashMap<String, Asset> =
@@ -1057,6 +1068,7 @@ mod tests {
         assert_eq!(settings.trash_location, trash_location);
         assert_eq!(settings.theme, "system");
         assert_eq!(settings.security_level, "strict");
+        assert!(settings.ignored_platform_ids.is_empty());
     }
 
     #[test]
@@ -1075,6 +1087,7 @@ mod tests {
             trash_location: "/tmp/custom/Trash".to_string(),
             theme: "dark".to_string(),
             security_level: "balanced".to_string(),
+            ignored_platform_ids: vec!["claude-app".to_string()],
         };
 
         save_settings(&conn, &settings).unwrap();
@@ -1097,6 +1110,7 @@ mod tests {
         assert_eq!(reloaded.trash_location, settings.trash_location);
         assert_eq!(reloaded.theme, settings.theme);
         assert_eq!(reloaded.security_level, settings.security_level);
+        assert_eq!(reloaded.ignored_platform_ids, settings.ignored_platform_ids);
     }
 
     #[test]

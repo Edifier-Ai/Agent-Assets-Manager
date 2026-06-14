@@ -1,13 +1,15 @@
 import { useToast } from '../components/Toast';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  Folder, Database, Sun, Moon, Monitor, Shield, Save, CheckCircle2, Plus, Trash2
+  Folder, Database, Sun, Moon, Monitor, Shield, Save, CheckCircle2, Plus, Trash2, EyeOff
 } from 'lucide-react';
 import FormField from '../components/FormField';
-import type { AppSettings, SaveSettingsInput } from '../types';
+import PlatformIcon from '../components/PlatformIcon';
+import type { AppSettings, Platform, SaveSettingsInput } from '../types';
 
 interface SettingsPageProps {
   settings?: AppSettings;
+  platforms?: Platform[];
   onSaveSettings?: (settings: SaveSettingsInput) => Promise<void>;
   onDirtyChange?: (dirty: boolean) => void;
 }
@@ -53,6 +55,7 @@ export function resolveSettingsFormState(settings?: AppSettings): SaveSettingsIn
     enableDeepScan: settings?.enableDeepScan ?? false,
     dbLocation: settings?.dbLocation ?? DEFAULT_DB_LOCATION,
     trashLocation: settings?.trashLocation ?? DEFAULT_TRASH_LOCATION,
+    ignoredPlatformIds: settings?.ignoredPlatformIds ?? [],
   };
 }
 
@@ -73,13 +76,14 @@ export function applyThemePreference(
   return appliedTheme;
 }
 
-export default function SettingsPage({ settings, onSaveSettings, onDirtyChange }: SettingsPageProps) {
+export default function SettingsPage({ settings, platforms = [], onSaveSettings, onDirtyChange }: SettingsPageProps) {
   const [theme, setTheme] = useState('system');
   const [scanPaths, setScanPaths] = useState<string[]>(DEFAULT_SCAN_PATHS);
   const [includeProjectLocal, setIncludeProjectLocal] = useState(true);
   const [enableDeepScan, setEnableDeepScan] = useState(false);
   const [dbLocation, setDbLocation] = useState(DEFAULT_DB_LOCATION);
   const [trashLocation, setTrashLocation] = useState(DEFAULT_TRASH_LOCATION);
+  const [ignoredPlatformIds, setIgnoredPlatformIds] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -93,9 +97,10 @@ export default function SettingsPage({ settings, onSaveSettings, onDirtyChange }
       includeProjectLocal !== s.includeProjectLocal ||
       enableDeepScan !== s.enableDeepScan ||
       dbLocation !== s.dbLocation ||
-      trashLocation !== s.trashLocation
+      trashLocation !== s.trashLocation ||
+      JSON.stringify(ignoredPlatformIds) !== JSON.stringify(s.ignoredPlatformIds)
     );
-  }, [theme, scanPaths, includeProjectLocal, enableDeepScan, dbLocation, trashLocation, settings]);
+  }, [theme, scanPaths, includeProjectLocal, enableDeepScan, dbLocation, trashLocation, ignoredPlatformIds, settings]);
 
   useEffect(() => {
     onDirtyChange?.(isDirty);
@@ -109,6 +114,7 @@ export default function SettingsPage({ settings, onSaveSettings, onDirtyChange }
     setEnableDeepScan(nextState.enableDeepScan);
     setDbLocation(nextState.dbLocation);
     setTrashLocation(nextState.trashLocation);
+    setIgnoredPlatformIds(nextState.ignoredPlatformIds);
   }, [settings]);
 
   const handleReset = () => {
@@ -119,6 +125,15 @@ export default function SettingsPage({ settings, onSaveSettings, onDirtyChange }
     setEnableDeepScan(nextState.enableDeepScan);
     setDbLocation(nextState.dbLocation);
     setTrashLocation(nextState.trashLocation);
+    setIgnoredPlatformIds(nextState.ignoredPlatformIds);
+  };
+
+  const toggleIgnoredPlatform = (platformId: string) => {
+    setIgnoredPlatformIds((ids) => (
+      ids.includes(platformId)
+        ? ids.filter((id) => id !== platformId)
+        : [...ids, platformId].sort()
+    ));
   };
 
   const updateScanPath = (index: number, value: string) => {
@@ -163,6 +178,7 @@ export default function SettingsPage({ settings, onSaveSettings, onDirtyChange }
         enableDeepScan,
         dbLocation: dbLocation.trim(),
         trashLocation: trashLocation.trim(),
+        ignoredPlatformIds,
       });
       setSaved(true);
       showToast('设置已保存', 'success');
@@ -277,6 +293,43 @@ export default function SettingsPage({ settings, onSaveSettings, onDirtyChange }
                     className={`block w-full text-sm font-mono text-gray-700 bg-gray-50 px-3 py-2 rounded-lg border focus:outline-none ${errors.trashLocation ? 'border-red-300 focus:border-red-400' : 'border-transparent focus:border-gray-300'}`}
                   />
                 </FormField>
+              </div>
+            </div>
+
+            <div className="section-card">
+              <div className="px-5 py-4 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <EyeOff className="w-4 h-4 text-gray-500" />
+                  <h3 className="font-semibold text-gray-900">平台忽略</h3>
+                </div>
+              </div>
+              <div className="p-5 space-y-2">
+                {platforms.filter((platform) => platform.status === 'active').map((platform) => {
+                  const ignored = ignoredPlatformIds.includes(platform.id);
+                  return (
+                    <label key={platform.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2">
+                      <span className="flex min-w-0 items-center gap-3">
+                        <PlatformIcon kind={platform.kind} platformName={platform.name} className="h-8 w-8" />
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm font-medium text-gray-800">{platform.name}</span>
+                          <span className="block truncate text-xs text-gray-400">{platform.configRoots[0] ?? platform.kind}</span>
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={ignored}
+                        onClick={() => toggleIgnoredPlatform(platform.id)}
+                        className={`h-6 w-11 rounded-full transition-colors duration-200 ${ignored ? 'bg-gray-900' : 'bg-gray-200'}`}
+                      >
+                        <span className={`block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200 mt-0.5 ${ignored ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                      </button>
+                    </label>
+                  );
+                })}
+                {platforms.filter((platform) => platform.status === 'active').length === 0 && (
+                  <div className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-500">暂无已安装平台</div>
+                )}
               </div>
             </div>
 

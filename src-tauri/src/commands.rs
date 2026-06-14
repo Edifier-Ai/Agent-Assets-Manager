@@ -370,6 +370,7 @@ pub struct SaveSettingsRequest {
     pub enable_deep_scan: bool,
     pub db_location: String,
     pub trash_location: String,
+    pub ignored_platform_ids: Vec<String>,
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -423,6 +424,7 @@ fn merge_save_settings_request(
         trash_location: sanitize_path(request.trash_location, current.trash_location),
         theme: request.theme,
         security_level: current.security_level,
+        ignored_platform_ids: sanitize_platform_ids(request.ignored_platform_ids),
     }
 }
 
@@ -449,6 +451,17 @@ fn sanitize_paths(paths: Vec<String>, fallback: Vec<String>) -> Vec<String> {
     } else {
         cleaned
     }
+}
+
+fn sanitize_platform_ids(ids: Vec<String>) -> Vec<String> {
+    let mut cleaned = ids
+        .into_iter()
+        .map(|id| id.trim().to_string())
+        .filter(|id| !id.is_empty())
+        .collect::<Vec<_>>();
+    cleaned.sort();
+    cleaned.dedup();
+    cleaned
 }
 
 #[tauri::command]
@@ -490,6 +503,7 @@ mod tests {
             trash_location: "/tmp/Trash".to_string(),
             theme: "system".to_string(),
             security_level: "strict".to_string(),
+            ignored_platform_ids: vec!["claude-app".to_string()],
         };
         let request = SaveSettingsRequest {
             theme: "dark".to_string(),
@@ -498,6 +512,7 @@ mod tests {
             enable_deep_scan: true,
             db_location: current.db_location.clone(),
             trash_location: current.trash_location.clone(),
+            ignored_platform_ids: vec!["trae".to_string()],
         };
 
         let merged = merge_save_settings_request(current, request);
@@ -507,6 +522,7 @@ mod tests {
         assert_eq!(merged.trash_location, "/tmp/Trash");
         assert_eq!(merged.security_level, "strict");
         assert_eq!(merged.theme, "dark");
+        assert_eq!(merged.ignored_platform_ids, vec!["trae".to_string()]);
         assert!(!merged.include_project_local);
         assert!(merged.enable_deep_scan);
     }
@@ -521,6 +537,7 @@ mod tests {
             trash_location: "/tmp/Trash".to_string(),
             theme: "system".to_string(),
             security_level: "strict".to_string(),
+            ignored_platform_ids: Vec::new(),
         };
         let request = SaveSettingsRequest {
             theme: "light".to_string(),
@@ -532,6 +549,11 @@ mod tests {
             enable_deep_scan: true,
             db_location: "/Users/test/Data/agent-assets.db".to_string(),
             trash_location: "/Users/test/.Trash/Agent Assets Manager".to_string(),
+            ignored_platform_ids: vec![
+                "claude-app".to_string(),
+                "claude-app".to_string(),
+                " ".to_string(),
+            ],
         };
 
         let merged = merge_save_settings_request(current, request);
@@ -552,5 +574,6 @@ mod tests {
         assert!(!merged.include_project_local);
         assert!(merged.enable_deep_scan);
         assert_eq!(merged.security_level, "strict");
+        assert_eq!(merged.ignored_platform_ids, vec!["claude-app".to_string()]);
     }
 }

@@ -1,13 +1,13 @@
 <claude-mem-context>
 # Memory Context
 
-# [Agent Assets Manager] recent context, 2026-06-14 1:17am GMT+8
+# [Agent Assets Manager] recent context, 2026-06-14 11:50am GMT+8
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (12,842t read) | 5,173,250t work | 100% savings
+Stats: 50 obs (11,815t read) | 5,468,086t work | 100% savings
 
 ### Jun 13, 2026
 S108 优化资产卡片的交互、易用性与数据来源，重点解决来源显示为 unknown 的问题 (Jun 13 at 6:07 PM)
@@ -20,32 +20,6 @@ S113 修复点击“安装到全部平台”后浮层过高、无法点击的问
 S114 修复点击“安装到全部平台”后浮层过高、无法点击的问题 (Jun 13 at 6:13 PM)
 S115 修复点击“安装到全部平台”后浮层过高、无法点击的问题 (Jun 13 at 6:13 PM)
 S116 修复点击“安装到全部平台”后浮层过高、无法点击的问题 (Jun 13 at 6:19 PM)
-1864 7:39p ✅ Improve platform installation status readability in cards
-1866 " 🔵 AssetCard platform buttons and Trae icon support inspected
-1867 " 🔵 Trae official icon extracted and icon asset standard identified
-1868 7:40p 🟣 Added official Trae platform icon
-1869 " ✅ Improved platform install button readability in asset cards
-1870 " 🔵 Frontend test suite passes after icon and readability changes
-1871 " 🔵 Production build succeeds with new Trae icon included
-1872 " 🔵 Dev server started for visual validation
-1873 " 🔵 In-app browser runtime connected for visual QA
-1874 " 🔵 Browser QA started on assets route with no console errors
-1875 " 🔵 Visual QA confirms installed/uninstalled platform button states
-1876 7:41p 🟣 Platform install buttons gain clear installed-state visuals and Trae icon
-1877 7:45p 🟣 Agent Assets Manager v0.1.9 release built and verified
-1880 " 🔵 No active Tauri or cargo build processes detected
-1881 " 🟣 Agent Assets Manager v0.1.10 DMG build in progress
-1878 7:46p ✅ Agent Assets Manager version bumped to 0.1.10
-1879 " 🟣 Agent Assets Manager v0.1.10 test suites passed
-1882 7:47p 🟣 Agent Assets Manager v0.1.10 DMG build completed
-1917 " 🟣 Agent Assets Manager v0.1.10 release built and verified
-1883 " 🟣 Agent Assets Manager v0.1.10 DMG artifact verified
-1884 8:06p ⚖️ Cross-platform skill sync strategy decision
-1885 " 🔵 Agent Assets Manager project context and structure discovered
-1886 " 🔵 Existing bulk install and operation infrastructure discovered
-1902 " 🟣 Cross-platform skill sync and multi-select batch operations implemented
-1887 8:07p 🔵 Current asset operation model and multi-select gaps mapped
-1903 8:31p 🔵 Code review found backend batch sync API is not wired to frontend batch UI
 1909 8:33p 🟣 Batch Skill Sync across platforms implemented end-to-end
 1910 " 🟣 Frontend UI exposes source-platform selector and batch sync actions
 1911 " 🔴 Mobile narrow viewport no longer auto-opens asset detail panel
@@ -69,8 +43,34 @@ S116 修复点击“安装到全部平台”后浮层过高、无法点击的问
 2007 " 🔵 Frontend production build succeeds after fix
 2010 1:13a ✅ Agent Assets Manager v0.1.13 released
 2011 " ✅ Agent Assets Manager v0.1.13 DMG bundling started
+2027 " ✅ Agent Assets Manager version bumped to 0.1.14
+2028 " ✅ Agent Assets Manager v0.1.14 version bump and frontend tests passed
 2012 1:14a ✅ Agent Assets Manager v0.1.13 DMG verified
 2013 1:17a ⚖️ Global icon redesign planned in Trae style
+2014 " 🔵 Agent Assets Manager is a Tauri app with platform icon assets
+2016 " 🔵 Project tech stack and existing icon styling patterns identified
+2015 " ⚖️ Platform support scope includes both Claude Code CLI and Claude App
+2017 " 🔵 Current Claude platform entry only covers Claude Code CLI, not Claude App
+2020 1:18a 🔵 Platform icons inspected: 512x512 PNGs with mixed transparency
+2018 " 🔵 Claude App support requires new adapter, PlatformKind variant, and frontend mappings
+2019 " 🔵 Frontend Platform type and backend operations assume every platform has a CLI path
+2023 1:19a 🟣 Implemented unified dark-themed platform icons with brand-color accents
+2024 " 🔵 Local dev app loads in browser-shell mode without platform-icon-frame element
+2021 " 🟣 Implemented distinct Claude App platform support alongside Claude Code
+2022 " 🔵 Frontend and backend test suites pass after Claude App implementation
+2025 1:22a 🔵 App enforces Tauri-only runtime and shows browser-shell blocker page
+2026 " 🔵 In-app browser blocks data:text/html URLs; QA page saved to temp file
+2030 10:13a ✅ Agent Assets Manager v0.1.14 build queue idle
+2031 10:14a 🔵 Agent Assets Manager v0.1.14 DMG bundling failed
+2029 " ✅ Agent Assets Manager v0.1.14 tests passed
+2032 10:15a 🔵 Stale DMG mounts caused v0.1.14 bundle failure
+2033 " ✅ Agent Assets Manager v0.1.14 build retried after ejecting stale mounts
+2034 " ✅ Agent Assets Manager v0.1.14 DMG built successfully
+2035 10:16a ✅ Agent Assets Manager v0.1.14 DMG verified
+2051 10:43a ✅ Icon inner content too small to read
+2052 " 🔵 PlatformIcon renders PNGs with object-cover inside a black frame
+2053 10:44a ✅ Enlarged platform icons in install buttons
+2054 " ✅ Validation passed after enlarging platform icons
 
-Access 5173k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 5468k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

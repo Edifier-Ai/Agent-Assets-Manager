@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, type ComponentType } from 'react';
+import { useState, useCallback, useEffect, useMemo, type ComponentType } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import WindowChrome from './components/WindowChrome';
 import Sidebar from './components/Sidebar';
@@ -17,6 +17,7 @@ import SettingsPage, { applyThemePreference } from './pages/SettingsPage';
 import FirstRunWizard from './components/FirstRunWizard';
 import { ToastProvider, useToast } from './components/Toast';
 import * as api from './api';
+import { isInstalledOnPlatform } from './pages/assets/logic';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import type {
   NavPage,
@@ -31,6 +32,51 @@ import type {
   AppSettings,
   SaveSettingsInput,
 } from './types';
+
+interface FilterIgnoredPlatformDataInput {
+  platforms: Platform[];
+  assets: Asset[];
+  modelBindings: ModelBinding[];
+  findings: Finding[];
+  settings?: AppSettings | null;
+}
+
+export function filterIgnoredPlatformData({
+  platforms,
+  assets,
+  modelBindings,
+  findings,
+  settings,
+}: FilterIgnoredPlatformDataInput): Pick<FilterIgnoredPlatformDataInput, 'platforms' | 'assets' | 'modelBindings' | 'findings'> {
+  const ignoredIds = new Set(settings?.ignoredPlatformIds ?? []);
+  if (ignoredIds.size === 0) {
+    return { platforms, assets, modelBindings, findings };
+  }
+
+  const ignoredPlatforms = platforms.filter((platform) => ignoredIds.has(platform.id));
+  const visiblePlatforms = platforms.filter((platform) => !ignoredIds.has(platform.id));
+  const isIgnoredInstallation = (asset: Asset, installationId: string) => {
+    const installation = asset.installations.find((item) => item.id === installationId);
+    if (!installation) return false;
+    if (ignoredIds.has(installation.platformId)) return true;
+    const singleInstallAsset = { ...asset, installations: [installation] };
+    return ignoredPlatforms.some((platform) => isInstalledOnPlatform(singleInstallAsset, platform));
+  };
+
+  const visibleAssets = assets
+    .map((asset) => ({
+      ...asset,
+      installations: asset.installations.filter((installation) => !isIgnoredInstallation(asset, installation.id)),
+    }))
+    .filter((asset) => asset.installations.length > 0);
+
+  return {
+    platforms: visiblePlatforms,
+    assets: visibleAssets,
+    modelBindings: modelBindings.filter((binding) => !ignoredIds.has(binding.platformId)),
+    findings: findings.filter((finding) => !ignoredIds.has(finding.platformId)),
+  };
+}
 
 const pageComponents: Record<NavPage, ComponentType<any>> = {
   overview: OverviewPage,
@@ -250,13 +296,20 @@ function AppShell() {
   }, [showToast]);
 
   const PageComponent = pageComponents[currentPage];
-
-  const pageProps = {
+  const visibleData = useMemo(() => filterIgnoredPlatformData({
     platforms,
     assets,
     modelBindings,
-    backups,
     findings,
+    settings,
+  }), [platforms, assets, modelBindings, findings, settings]);
+
+  const pageProps = {
+    platforms: currentPage === 'settings' ? platforms : visibleData.platforms,
+    assets: visibleData.assets,
+    modelBindings: visibleData.modelBindings,
+    backups,
+    findings: visibleData.findings,
     operationLogs,
     scanRuns,
     settings: settings ?? undefined,
