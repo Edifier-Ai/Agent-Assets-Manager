@@ -1,7 +1,7 @@
 # Agent Assets Manager 前端与功能实现要求
 
 Date: 2026-06-12
-Updated: 2026-06-13
+Updated: 2026-06-14
 
 ## 当前实现状态
 
@@ -9,7 +9,7 @@ Updated: 2026-06-13
 
 当前代码状态：
 
-- 版本为 `0.1.3`。
+- 版本为 `0.1.15`。
 - 技术栈已落地为 Tauri 2 + React 18 + TypeScript + Vite + Rust + SQLite + Tailwind CSS。
 - 七个一级页面已存在：概览、资产、平台、模型、扫描、备份、设置。
 - 首次扫描向导、扫描页、设置、模型配置、操作预览、备份记录已经接入 Tauri/Rust/SQLite 侧能力。
@@ -17,8 +17,9 @@ Updated: 2026-06-13
 - 资产页已实现按资产类型/SKU 分组的卡片视图，保留右侧详情面板，支持平台图标、添加到全部平台、单平台目标选择、中文按钮文案。
 - 平台图标改为生成式 PNG 资产，位于 `src/assets/platform-icons/`；Tauri 应用图标位于 `src-tauri/icons/`。
 - 标题和紧凑标签已做不换行/截断处理，避免窄视口下中文 UI 撑开布局。
-- 默认平台检测适配器包含 Codex、Claude Code、OpenCode、Hermes、OpenClaw、Kimi Code、Gemini CLI、Qwen Code、Cursor、Trae。
+- 默认平台检测适配器包含 Codex、Claude Code、Claude App、OpenCode、Hermes、OpenClaw、Kimi Code、Gemini CLI、Qwen Code、Cursor、Trae。
 - `Generic CLI` 保留在平台模型和 adapter factory 中，但尚未进入默认检测列表。
+- 浏览器模式不再返回 mock/fallback 业务数据；真实扫描、设置、资产和操作流必须运行在 Tauri 桌面 runtime 中。
 
 ## 目的
 

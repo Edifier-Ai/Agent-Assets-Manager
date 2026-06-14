@@ -6,7 +6,7 @@ The app is built with Tauri 2, React, TypeScript, Rust, and SQLite. It scans loc
 
 ## Current Status
 
-- Version: `0.1.3`
+- Version: `0.1.15`
 - Desktop target: macOS DMG
 - Frontend: React 18 + TypeScript + Vite + Tailwind CSS
 - Native core: Tauri 2 + Rust + SQLite
@@ -22,9 +22,11 @@ Implemented areas:
 - Asset filtering plus grouped card view by asset SKU/type
 - Right-side detail panel for selected assets/platforms/model state
 - Backend-generated operation previews for mutating actions
+- Batch skill sync preview/execution across supported platforms
 - Backup/trash-oriented safety model for local file changes
 - Generated PNG platform icons and tracked macOS app bundle icons
 - Non-wrapping Chinese labels and compact desktop-tool layout polish
+- Browser mode blocks real business data instead of returning mock/fallback state
 
 ## Supported Platform Surface
 
@@ -111,6 +113,12 @@ The final DMG is produced under:
 
 ```text
 src-tauri/target/release/bundle/dmg/
+```
+
+Current release artifact naming follows:
+
+```text
+Agent Assets Manager_0.1.15_aarch64.dmg
 ```
 
 ## Project Layout

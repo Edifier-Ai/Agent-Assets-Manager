@@ -1,19 +1,20 @@
 # Agent Assets Manager MVP Design
 
 Date: 2026-06-12
-Updated: 2026-06-13
+Updated: 2026-06-14
 
 ## Current Implementation Snapshot
 
 The repository has moved beyond the initial MVP specification. As of the current code state:
 
-- The app version is `0.1.3`.
+- The app version is `0.1.15`.
 - The selected stack is implemented: Tauri 2, React 18, TypeScript, Vite, Rust, SQLite, and Tailwind CSS.
 - The app has a real desktop shell, first-run wizard, scan page, persisted settings, persisted scan runs, operation previews, backup records, and model profile storage.
 - The frontend has an explicit DTO mapping layer so Rust snake_case payloads are translated into camelCase UI view models.
 - The Assets page now defaults to a grouped card view by asset type/SKU, with platform icons, add-to-all/per-platform install controls, Chinese actions, and a right-side detail panel.
 - Generated PNG platform icons are tracked under `src/assets/platform-icons/`; bundle icons are tracked under `src-tauri/icons/`.
-- Default platform detection adapters currently include Codex, Claude Code, OpenCode, Hermes, OpenClaw, Kimi Code, Gemini CLI, Qwen Code, Cursor, and Trae.
+- Default platform detection adapters currently include Codex, Claude Code, Claude App, OpenCode, Hermes, OpenClaw, Kimi Code, Gemini CLI, Qwen Code, Cursor, and Trae.
+- Browser mode now blocks business data access instead of serving mock/fallback runtime state; real scans and operations require the Tauri desktop runtime.
 - `Generic CLI` exists in the platform enum and adapter factory but is not part of the default detection registry yet.
 
 This document remains the product baseline. For exact implementation status, also read `docs/superpowers/plans/2026-06-13-full-gap-closure.md`.
@@ -42,7 +43,7 @@ The first version is not a marketplace-first product. It should answer:
 - Card-based Skills and agent asset management.
 - Platform installation matrix for each asset.
 - Safe enable, disable, restore, and delete-to-trash flows.
-- Detection of Codex, Claude Code, OpenCode, Hermes, OpenClaw, Kimi Code, Gemini CLI, Qwen Code, Cursor, and Trae.
+- Detection of Codex, Claude Code, Claude App, OpenCode, Hermes, OpenClaw, Kimi Code, Gemini CLI, Qwen Code, Cursor, and Trae.
 - Generic CLI representation through the shared platform model and adapter factory, with default detection still pending.
 - Discovery of Skills, agents, commands, MCP configs, rules, memories, personas, and provider configs where supported.
 - Unified model/provider management view.

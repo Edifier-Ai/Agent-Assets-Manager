@@ -1,13 +1,13 @@
 <claude-mem-context>
 # Memory Context
 
-# [Agent Assets Manager] recent context, 2026-06-14 11:50am GMT+8
+# [Agent Assets Manager] recent context, 2026-06-14 8:19pm GMT+8
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (11,815t read) | 5,468,086t work | 100% savings
+Stats: 50 obs (11,847t read) | 5,064,065t work | 100% savings
 
 ### Jun 13, 2026
 S108 优化资产卡片的交互、易用性与数据来源，重点解决来源显示为 unknown 的问题 (Jun 13 at 6:07 PM)
@@ -22,8 +22,6 @@ S115 修复点击“安装到全部平台”后浮层过高、无法点击的问
 S116 修复点击“安装到全部平台”后浮层过高、无法点击的问题 (Jun 13 at 6:19 PM)
 1909 8:33p 🟣 Batch Skill Sync across platforms implemented end-to-end
 1910 " 🟣 Frontend UI exposes source-platform selector and batch sync actions
-1911 " 🔴 Mobile narrow viewport no longer auto-opens asset detail panel
-1912 " 🔵 All tests and production builds pass after batch sync implementation
 2008 8:54p ✅ Agent Assets Manager v0.1.11 DMG built
 2009 " ✅ Agent Assets Manager v0.1.12 DMG built
 1918 9:01p ⚖️ Consolidate platform skill availability indicators
@@ -71,6 +69,8 @@ S116 修复点击“安装到全部平台”后浮层过高、无法点击的问
 2052 " 🔵 PlatformIcon renders PNGs with object-cover inside a black frame
 2053 10:44a ✅ Enlarged platform icons in install buttons
 2054 " ✅ Validation passed after enlarging platform icons
+2071 11:50a 🔵 Codex TDD skill file missing on disk
+2072 " 🔵 Platform ignore fields already defined in TypeScript types
 
-Access 5468k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 5064k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

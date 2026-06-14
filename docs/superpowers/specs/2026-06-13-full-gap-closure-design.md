@@ -8,14 +8,15 @@ The gap-closure work has been implemented in the current repository state and th
 
 Current live-code facts:
 
-- Version is `0.1.3`.
+- Version is `0.1.15`.
 - The frontend/backend DTO boundary exists under `src/mappers/`.
 - Settings, scan runs, scan steps, model profiles, model bindings, operations, and backups are persisted through the Rust/SQLite layer.
 - Platform behavior is adapter-driven through `src-tauri/src/adapters/`.
-- Default adapter detection currently covers Codex, Claude Code, OpenCode, Hermes, OpenClaw, Kimi Code, Gemini CLI, Qwen Code, Cursor, and Trae.
+- Default adapter detection currently covers Codex, Claude Code, Claude App, OpenCode, Hermes, OpenClaw, Kimi Code, Gemini CLI, Qwen Code, Cursor, and Trae.
 - `GenericCliAdapter` remains available from `adapter_for_kind`, but is not part of default detection.
 - The assets page has evolved from table/list-first to a grouped card-first experience while retaining a list mode and right-side detail panel.
 - Platform artwork is generated PNG under `src/assets/platform-icons/`; bundle artwork is tracked under `src-tauri/icons/`.
+- Browser mode now blocks business-data access instead of serving runtime mock/fallback data; the Tauri desktop runtime is the supported real-data path.
 
 The design below remains useful as the architectural rationale and implementation boundary. Treat "current problems" as historical unless re-confirmed against the live code.
 

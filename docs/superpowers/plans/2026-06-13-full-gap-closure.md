@@ -10,7 +10,7 @@
 
 ## Execution Status
 
-Updated: 2026-06-13
+Updated: 2026-06-14
 
 This plan has been implemented as a unified gap-closure pass rather than as separate per-task commits. Verification performed:
 
@@ -25,11 +25,12 @@ Notes:
 
 - Runtime imports no longer depend on `src/data/mockData.ts`; that file only keeps empty design-time placeholders.
 - The original per-task commit steps are considered satisfied by the final unified commit for this implementation pass.
-- The repository has since advanced to version `0.1.3`.
-- Default platform detection now includes Codex, Claude Code, OpenCode, Hermes, OpenClaw, Kimi Code, Gemini CLI, Qwen Code, Cursor, and Trae.
+- The repository has since advanced to version `0.1.15`.
+- Default platform detection now includes Codex, Claude Code, Claude App, OpenCode, Hermes, OpenClaw, Kimi Code, Gemini CLI, Qwen Code, Cursor, and Trae.
 - `GenericCliAdapter` remains factory-supported but is not part of the default detection registry.
 - Assets page now includes a grouped card view by asset type/SKU, platform PNG icons, add-to-all/per-platform installation controls, and a right-side detail panel.
 - Generated app/platform icon assets are tracked under `src-tauri/icons/` and `src/assets/platform-icons/`.
+- Browser mode now blocks business-data access instead of using runtime mock/fallback state; real scans and operations require the Tauri desktop app.
 
 ---
 

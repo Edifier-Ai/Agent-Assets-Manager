@@ -1,6 +1,6 @@
 [package]
 name = "agent-assets-manager"
-version = "0.1.14"
+version = "0.1.15"
 description = "Agent Assets Manager - Mac-first local control center for AI agent assets"
 authors = ["you"]
 edition = "2021"
