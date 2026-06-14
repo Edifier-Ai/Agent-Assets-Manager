@@ -30,7 +30,14 @@ describe('resolveSettingsFormState', () => {
   it('falls back to defaults before settings load', () => {
     expect(resolveSettingsFormState()).toEqual({
       theme: 'system',
-      scanPaths: ['~/.codex', '~/.claude', '~/.opencode', '~/.hermes', '~/.openclaw'],
+      scanPaths: [
+        '~/.codex',
+        '~/.claude',
+        '~/Library/Application Support/Claude',
+        '~/.opencode',
+        '~/.hermes',
+        '~/.openclaw',
+      ],
       includeProjectLocal: true,
       enableDeepScan: false,
       dbLocation: '~/Library/Application Support/Agent Assets Manager/data.db',

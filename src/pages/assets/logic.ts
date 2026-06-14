@@ -44,12 +44,23 @@ export function groupAssetsByType(assets: Asset[]): AssetGroup[] {
 }
 
 export function normalizePlatform(value: string): string {
-  return value.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+  const normalized = value.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '');
+  const aliases: Record<string, string> = {
+    claudecli: 'claude',
+    claudecode: 'claude',
+    claudeapp: 'claudeapp',
+    claude3p: 'claudeapp',
+    kimicode: 'kimi',
+    geminicli: 'gemini',
+    qwencode: 'qwen',
+  };
+  return aliases[normalized] ?? normalized;
 }
 
 const platformPathHints: Record<string, string[]> = {
   codex: ['/.codex/'],
   claude: ['/.claude/'],
+  claudeapp: ['/library/application support/claude/', '/library/application support/claude-3p/'],
   opencode: ['/.config/opencode/', '/.opencode/'],
   hermes: ['/.hermes/'],
   openclaw: ['/.openclaw/'],
@@ -99,13 +110,7 @@ export function isInstalledOnPlatform(asset: Asset, target: PlatformTarget): boo
       ...inferPlatformsFromPath(installation.path),
     ].map(normalizePlatform).filter(Boolean);
 
-    return targetKeys.some((targetKey) => (
-      installationKeys.some((installationKey) => (
-        installationKey === targetKey
-          || installationKey.includes(targetKey)
-          || targetKey.includes(installationKey)
-      ))
-    ));
+    return targetKeys.some((targetKey) => installationKeys.includes(targetKey));
   });
 }
 

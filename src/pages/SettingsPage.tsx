@@ -12,7 +12,14 @@ interface SettingsPageProps {
   onDirtyChange?: (dirty: boolean) => void;
 }
 
-const DEFAULT_SCAN_PATHS = ['~/.codex', '~/.claude', '~/.opencode', '~/.hermes', '~/.openclaw'];
+const DEFAULT_SCAN_PATHS = [
+  '~/.codex',
+  '~/.claude',
+  '~/Library/Application Support/Claude',
+  '~/.opencode',
+  '~/.hermes',
+  '~/.openclaw',
+];
 const DEFAULT_DB_LOCATION = '~/Library/Application Support/Agent Assets Manager/data.db';
 const DEFAULT_TRASH_LOCATION = '~/Library/Application Support/Agent Assets Manager/Trash';
 type AppliedTheme = 'light' | 'dark';

@@ -25,7 +25,8 @@ export const assetTypeOrder: AssetType[] = [
 
 export const platformTargets: PlatformTarget[] = [
   { id: 'codex', name: 'Codex', kind: 'codex' },
-  { id: 'claude', name: 'Claude', kind: 'claude' },
+  { id: 'claude', name: 'Claude Code', kind: 'claude' },
+  { id: 'claude-app', name: 'Claude App', kind: 'claude-app' },
   { id: 'opencode', name: 'OpenCode', kind: 'opencode' },
   { id: 'hermes', name: 'Hermes', kind: 'hermes' },
   { id: 'openclaw', name: 'OpenClaw', kind: 'openclaw' },

@@ -200,6 +200,20 @@ describe('platform installation matching', () => {
           status: 'installed',
         },
         {
+          id: 'inst-claude-app-generic',
+          assetId: 'asset-Skill',
+          platformId: 'generic',
+          platformName: 'Generic CLI',
+          path: '/Users/summer/Library/Application Support/Claude-3p/configLibrary/current.json',
+          scope: 'user',
+          enabled: true,
+          official: false,
+          projectLocal: false,
+          bindingType: 'copy',
+          contentHash: '',
+          status: 'installed',
+        },
+        {
           id: 'inst-hermes-generic',
           assetId: 'asset-Skill',
           platformId: 'generic',
@@ -217,7 +231,8 @@ describe('platform installation matching', () => {
     };
 
     expect(isInstalledOnPlatform(asset, { id: 'codex', name: 'Codex', kind: 'codex' })).toBe(true);
-    expect(isInstalledOnPlatform(asset, { id: 'claude', name: 'Claude', kind: 'claude' })).toBe(true);
+    expect(isInstalledOnPlatform(asset, { id: 'claude', name: 'Claude Code', kind: 'claude' })).toBe(true);
+    expect(isInstalledOnPlatform(asset, { id: 'claude-app', name: 'Claude App', kind: 'claude-app' })).toBe(true);
     expect(isInstalledOnPlatform(asset, { id: 'hermes', name: 'Hermes', kind: 'hermes' })).toBe(true);
     expect(isInstalledOnPlatform(asset, { id: 'trae', name: 'Trae', kind: 'trae' })).toBe(false);
   });
@@ -227,6 +242,7 @@ describe('platform installation matching', () => {
       ...makeAsset('Skill'),
       installations: [
         { id: 'inst-claude', assetId: 'asset-Skill', platformId: 'claude', platformName: 'Claude Code', path: '~/.claude/skills/review', scope: 'user', enabled: true, official: false, projectLocal: false, bindingType: 'copy', contentHash: '', status: 'installed' },
+        { id: 'inst-claude-app', assetId: 'asset-Skill', platformId: 'claude-app', platformName: 'Claude App', path: '~/Library/Application Support/Claude/configLibrary/current.json', scope: 'user', enabled: true, official: false, projectLocal: false, bindingType: 'copy', contentHash: '', status: 'installed' },
         { id: 'inst-opencode', assetId: 'asset-Skill', platformId: 'open-code', platformName: 'Open Code', path: '~/.config/opencode/skills/review', scope: 'user', enabled: true, official: false, projectLocal: false, bindingType: 'copy', contentHash: '', status: 'installed' },
         { id: 'inst-hermes', assetId: 'asset-Skill', platformId: 'hermes', platformName: 'Hermes', path: '~/.hermes/skills/review', scope: 'user', enabled: true, official: false, projectLocal: false, bindingType: 'copy', contentHash: '', status: 'installed' },
         { id: 'inst-openclaw', assetId: 'asset-Skill', platformId: 'open-claw', platformName: 'Open Claw', path: '~/.openclaw/skills/review', scope: 'user', enabled: true, official: false, projectLocal: false, bindingType: 'copy', contentHash: '', status: 'installed' },
@@ -239,7 +255,8 @@ describe('platform installation matching', () => {
     };
 
     expect([
-      { id: 'claude', name: 'Claude', kind: 'claude' },
+      { id: 'claude', name: 'Claude Code', kind: 'claude' },
+      { id: 'claude-app', name: 'Claude App', kind: 'claude-app' },
       { id: 'opencode', name: 'OpenCode', kind: 'opencode' },
       { id: 'hermes', name: 'Hermes', kind: 'hermes' },
       { id: 'openclaw', name: 'OpenClaw', kind: 'openclaw' },
@@ -258,6 +275,27 @@ describe('platform installation matching', () => {
       true,
       true,
       true,
+      true,
     ]);
+  });
+
+  it('does not confuse Claude Code and Claude App install states', () => {
+    const cliAsset: Asset = {
+      ...makeAsset('Skill'),
+      installations: [
+        { id: 'inst-claude', assetId: 'asset-Skill', platformId: 'claude', platformName: 'Claude Code', path: '~/.claude/skills/review', scope: 'user', enabled: true, official: false, projectLocal: false, bindingType: 'copy', contentHash: '', status: 'installed' },
+      ],
+    };
+    const appAsset: Asset = {
+      ...makeAsset('Model Config'),
+      installations: [
+        { id: 'inst-claude-app', assetId: 'asset-Model Config', platformId: 'claude-app', platformName: 'Claude App', path: '~/Library/Application Support/Claude/configLibrary/current.json', scope: 'user', enabled: true, official: false, projectLocal: false, bindingType: 'copy', contentHash: '', status: 'installed' },
+      ],
+    };
+
+    expect(isInstalledOnPlatform(cliAsset, { id: 'claude', name: 'Claude Code', kind: 'claude' })).toBe(true);
+    expect(isInstalledOnPlatform(cliAsset, { id: 'claude-app', name: 'Claude App', kind: 'claude-app' })).toBe(false);
+    expect(isInstalledOnPlatform(appAsset, { id: 'claude', name: 'Claude Code', kind: 'claude' })).toBe(false);
+    expect(isInstalledOnPlatform(appAsset, { id: 'claude-app', name: 'Claude App', kind: 'claude-app' })).toBe(true);
   });
 });

@@ -7,6 +7,7 @@ use std::time::{Duration, Instant};
 pub enum PlatformKind {
     Codex,
     Claude,
+    ClaudeApp,
     OpenCode,
     Hermes,
     OpenClaw,
@@ -23,6 +24,7 @@ impl PlatformKind {
         match value {
             "codex" => Some(PlatformKind::Codex),
             "claude" => Some(PlatformKind::Claude),
+            "claude-app" | "claude_app" | "claudeapp" => Some(PlatformKind::ClaudeApp),
             "opencode" => Some(PlatformKind::OpenCode),
             "hermes" => Some(PlatformKind::Hermes),
             "openclaw" => Some(PlatformKind::OpenClaw),
@@ -40,6 +42,7 @@ impl PlatformKind {
         match self {
             PlatformKind::Codex => "codex",
             PlatformKind::Claude => "claude",
+            PlatformKind::ClaudeApp => "claude-app",
             PlatformKind::OpenCode => "opencode",
             PlatformKind::Hermes => "hermes",
             PlatformKind::OpenClaw => "openclaw",
@@ -56,6 +59,7 @@ impl PlatformKind {
         match self {
             PlatformKind::Codex => "Codex",
             PlatformKind::Claude => "Claude Code",
+            PlatformKind::ClaudeApp => "Claude App",
             PlatformKind::OpenCode => "OpenCode",
             PlatformKind::Hermes => "Hermes",
             PlatformKind::OpenClaw => "OpenClaw",

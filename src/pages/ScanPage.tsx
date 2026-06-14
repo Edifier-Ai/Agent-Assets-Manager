@@ -130,6 +130,7 @@ export default function ScanPage({ scanRuns, settings, onRefresh }: ScanPageProp
   const savedScanPaths = settings?.scanPaths ?? [
     '~/.codex',
     '~/.claude',
+    '~/Library/Application Support/Claude',
     '~/.opencode',
     '~/.hermes',
     '~/.openclaw',
@@ -273,6 +274,7 @@ export default function ScanPage({ scanRuns, settings, onRefresh }: ScanPageProp
               <div className="space-y-1.5">
                 {[
                   'PATH: codex, claude, opencode, hermes, openclaw, kimi, gemini, qwen, trae',
+                  'App Support: Claude App, Trae',
                   '/opt/homebrew/bin',
                   '/usr/local/bin',
                   '~/.local/bin',

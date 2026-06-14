@@ -390,6 +390,12 @@ fn default_settings_context() -> SettingsContext {
         scan_paths: vec![
             home.join(".codex").to_string_lossy().to_string(),
             home.join(".claude").to_string_lossy().to_string(),
+            home.join("Library/Application Support/Claude")
+                .to_string_lossy()
+                .to_string(),
+            home.join("Library/Application Support/Claude-3p")
+                .to_string_lossy()
+                .to_string(),
             home.join(".opencode").to_string_lossy().to_string(),
             home.join(".hermes").to_string_lossy().to_string(),
             home.join(".openclaw").to_string_lossy().to_string(),

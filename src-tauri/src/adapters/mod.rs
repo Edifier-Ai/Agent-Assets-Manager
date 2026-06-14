@@ -1,4 +1,5 @@
 pub mod claude;
+pub mod claude_app;
 pub mod codex;
 pub mod cursor;
 pub mod gemini;
@@ -51,6 +52,7 @@ pub fn all_adapters() -> Vec<Box<dyn PlatformAdapter>> {
     vec![
         Box::new(codex::CodexAdapter::default()),
         Box::new(claude::ClaudeAdapter::default()),
+        Box::new(claude_app::ClaudeAppAdapter::default()),
         Box::new(opencode::OpenCodeAdapter::default()),
         Box::new(hermes::HermesAdapter::default()),
         Box::new(openclaw::OpenClawAdapter::default()),
@@ -67,6 +69,7 @@ pub fn adapter_for_kind(kind: &PlatformKind) -> Box<dyn PlatformAdapter> {
     match kind {
         PlatformKind::Codex => Box::new(codex::CodexAdapter::default()),
         PlatformKind::Claude => Box::new(claude::ClaudeAdapter::default()),
+        PlatformKind::ClaudeApp => Box::new(claude_app::ClaudeAppAdapter::default()),
         PlatformKind::OpenCode => Box::new(opencode::OpenCodeAdapter::default()),
         PlatformKind::Hermes => Box::new(hermes::HermesAdapter::default()),
         PlatformKind::OpenClaw => Box::new(openclaw::OpenClawAdapter::default()),

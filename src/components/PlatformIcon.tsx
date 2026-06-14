@@ -12,6 +12,7 @@ import openclawIcon from '../assets/platform-icons/openclaw.png';
 import opencodeIcon from '../assets/platform-icons/opencode.png';
 import qwenIcon from '../assets/platform-icons/qwen.png';
 import traeIcon from '../assets/platform-icons/trae.png';
+import { cn } from '../utils';
 
 type PlatformIconProps = ImgHTMLAttributes<HTMLImageElement> & {
   kind?: string;
@@ -53,13 +54,20 @@ export function PlatformIcon({ kind, platformName, className, alt = '', ...props
   const key = normalizePlatformKey(kind, platformName);
 
   return (
-    <img
-      src={iconByKey[key] ?? iconByKey.generic}
-      alt={alt}
-      className={className}
-      draggable={false}
-      {...props}
-    />
+    <span
+      className={cn(
+        'platform-icon-frame inline-flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-[#101114]',
+        className,
+      )}
+    >
+      <img
+        src={iconByKey[key] ?? iconByKey.generic}
+        alt={alt}
+        className="h-full w-full object-cover"
+        draggable={false}
+        {...props}
+      />
+    </span>
   );
 }
 

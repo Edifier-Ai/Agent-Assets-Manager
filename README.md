@@ -32,6 +32,7 @@ Default detection adapters currently cover:
 
 - Codex
 - Claude Code
+- Claude App
 - OpenCode
 - Hermes
 - OpenClaw

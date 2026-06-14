@@ -66,8 +66,18 @@ fn adapter_registry_includes_all_supported_platforms() {
     assert_eq!(
         kinds,
         vec![
-            "claude", "codex", "cursor", "gemini", "generic", "hermes", "kimi", "openclaw",
-            "opencode", "qwen", "trae"
+            "claude",
+            "claude-app",
+            "codex",
+            "cursor",
+            "gemini",
+            "generic",
+            "hermes",
+            "kimi",
+            "openclaw",
+            "opencode",
+            "qwen",
+            "trae",
         ]
     );
 }

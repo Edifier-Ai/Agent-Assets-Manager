@@ -1,13 +1,13 @@
 <claude-mem-context>
 # Memory Context
 
-# [Agent Assets Manager] recent context, 2026-06-14 12:37am GMT+8
+# [Agent Assets Manager] recent context, 2026-06-14 1:17am GMT+8
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (12,280t read) | 5,842,814t work | 100% savings
+Stats: 50 obs (12,842t read) | 5,173,250t work | 100% savings
 
 ### Jun 13, 2026
 S108 优化资产卡片的交互、易用性与数据来源，重点解决来源显示为 unknown 的问题 (Jun 13 at 6:07 PM)
@@ -20,21 +20,7 @@ S113 修复点击“安装到全部平台”后浮层过高、无法点击的问
 S114 修复点击“安装到全部平台”后浮层过高、无法点击的问题 (Jun 13 at 6:13 PM)
 S115 修复点击“安装到全部平台”后浮层过高、无法点击的问题 (Jun 13 at 6:13 PM)
 S116 修复点击“安装到全部平台”后浮层过高、无法点击的问题 (Jun 13 at 6:19 PM)
-1848 7:17p 🟣 Config filter matching logic and barrel exports implemented
-1851 " 🟣 Category optimization builds successfully
-1852 " 🔵 Browser QA confirms optimized filter layout
-1853 " 🟣 Asset toolbar redesigned with governance insight filters
-1854 " ✅ New consolidated config filter for configuration asset types
-1855 " 🔄 Memoized insight-count computation in AssetToolbar
-1857 7:33p ✅ Agent Assets Manager v0.1.8 version changes committed
-1858 " ✅ Agent Assets Manager version bumped to 0.1.9
-1859 " 🟣 Agent Assets Manager v0.1.9 frontend tests passed
-1860 7:34p 🟣 Agent Assets Manager v0.1.9 tests passed and version confirmed
-1861 " 🟣 Agent Assets Manager v0.1.9 DMG build in progress
-1862 " 🟣 Agent Assets Manager v0.1.9 DMG build continues
-1863 " 🟣 Agent Assets Manager v0.1.9 DMG built and verified
 1864 7:39p ✅ Improve platform installation status readability in cards
-1865 " 🔵 Platform icon rendering paths and Trae adapter located
 1866 " 🔵 AssetCard platform buttons and Trae icon support inspected
 1867 " 🔵 Trae official icon extracted and icon asset standard identified
 1868 7:40p 🟣 Added official Trae platform icon
@@ -64,12 +50,27 @@ S116 修复点击“安装到全部平台”后浮层过高、无法点击的问
 1910 " 🟣 Frontend UI exposes source-platform selector and batch sync actions
 1911 " 🔴 Mobile narrow viewport no longer auto-opens asset detail panel
 1912 " 🔵 All tests and production builds pass after batch sync implementation
+2008 8:54p ✅ Agent Assets Manager v0.1.11 DMG built
+2009 " ✅ Agent Assets Manager v0.1.12 DMG built
 1918 9:01p ⚖️ Consolidate platform skill availability indicators
 1919 9:02p ✅ Remove redundant platform availability indicator from AssetCard
 1920 " ✅ Browser runtime connected for visual QA
 1922 " 🔵 Dev server runs in browser demo mode with fallback data
 1923 9:03p ✅ AssetCard platform indicator duplication removed and visually verified
 1924 " 🔵 Browser tab screenshot uses tab.screenshot, not tab.playwright.screenshot
+### Jun 14, 2026
+2000 12:37a 🔵 Working tree contains uncommitted platform-install display fixes
+2001 12:38a 🔵 Install-state display depends on substring platform-name matching
+2002 " 🔴 Exported `isInstalledOnPlatform` and added cross-platform matching test
+2003 " 🔵 Production SQLite database located in Application Support
+2004 12:39a 🔵 Root cause: installations stored with `platform_id='generic'` hide real platform
+2005 12:40a 🔴 Fixed install-state display for generic-platform installation records
+2006 " 🔵 Path-based inference validated against production database
+2007 " 🔵 Frontend production build succeeds after fix
+2010 1:13a ✅ Agent Assets Manager v0.1.13 released
+2011 " ✅ Agent Assets Manager v0.1.13 DMG bundling started
+2012 1:14a ✅ Agent Assets Manager v0.1.13 DMG verified
+2013 1:17a ⚖️ Global icon redesign planned in Trae style
 
-Access 5843k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 5173k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
