@@ -81,7 +81,7 @@ export default function AssetCard({
     <motion.article
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.025 }}
+      transition={{ delay: Math.min(index * 0.025, 0.5) }}
       onClick={() => {
         if (isSelectionMode && asset.type === 'Skill') {
           onToggleCheck(asset);

@@ -54,10 +54,15 @@ import type {
   BatchSyncRequest,
 } from './types';
 
+interface ApiErrorPayload {
+  code: string;
+  message: string;
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
-  error?: string;
+  error?: ApiErrorPayload;
 }
 
 const UNSUPPORTED_RUNTIME_MESSAGE = 'Real business data is available only in the Tauri desktop app.';
@@ -75,7 +80,7 @@ function assertTauriRuntime(): void {
 async function invokeCmd<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   const resp = await invoke<ApiResponse<T>>(cmd, args);
   if (!resp.success) {
-    throw new Error(resp.error || 'Unknown error');
+    throw new Error(resp.error?.message || 'Unknown error');
   }
   if (resp.data === undefined) {
     throw new Error('No data returned');

@@ -92,7 +92,7 @@ describe('api runtime contract', () => {
 
   it('keeps Tauri command failures user readable', async () => {
     isTauriMock.mockReturnValue(true);
-    invokeMock.mockResolvedValue({ success: false, error: 'database unavailable' });
+    invokeMock.mockResolvedValue({ success: false, error: { code: 'DATABASE_ERROR', message: 'database unavailable' } });
     const api = await import('./api');
 
     await expect(api.getAssets()).rejects.toThrow('database unavailable');

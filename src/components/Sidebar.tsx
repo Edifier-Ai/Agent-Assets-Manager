@@ -50,7 +50,7 @@ export default function Sidebar({ active, onNavigate, latestScanRun, scanning }:
         </div>
         <span className="font-semibold text-sm text-gray-900 tracking-tight whitespace-nowrap">Agent Assets Manager</span>
       </div>
-      <nav className="flex-1 px-3 py-2 space-y-0.5">
+      <nav className="flex-1 px-3 py-2 space-y-0.5" aria-label="主导航">
         {items.map((item) => {
           const Icon = item.icon;
           const isActive = active === item.id;
@@ -58,6 +58,7 @@ export default function Sidebar({ active, onNavigate, latestScanRun, scanning }:
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
+              aria-current={isActive ? 'page' : undefined}
               className={`nav-item w-full text-left ${isActive ? 'active' : ''}`}
             >
               <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-gray-900' : 'text-gray-400'}`} />

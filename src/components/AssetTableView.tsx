@@ -56,7 +56,7 @@ export default function AssetTableView({
                 key={asset.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.03 }}
+                transition={{ delay: Math.min(index * 0.03, 0.5) }}
                 className={`table-row-hover cursor-pointer border-t border-gray-50 ${detailAssetId === asset.id ? 'bg-blue-50/50' : ''}`}
                 onClick={() => {
                   if (isSelectionMode && asset.type === 'Skill') {

@@ -1,8 +1,18 @@
+mod analysis;
+mod parsers;
+
+pub use analysis::infer_asset_type_from_context;
+
+use analysis::{
+    append_conflict_findings, append_contextual_findings, authoritative_source,
+    build_asset_status, derive_scope_and_project_local, resolve_asset_type,
+};
+use parsers::{parse_frontmatter, parse_model_config};
+
 use crate::adapters::{self, AssetSearchSpec, ModelConfigSpec, PlatformAdapter};
 use crate::db;
 use crate::db::{Asset, Finding, Installation, ModelBinding, Platform as DbPlatform, ScanRun};
 use crate::fileops;
-use regex::Regex;
 use rusqlite::Connection;
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
@@ -171,7 +181,6 @@ pub fn run_full_scan_with_adapters(
         },
     )?;
 
-    // Step 1: Detect platforms
     let (step_key, title, description) = SCAN_STEP_DEFINITIONS[0];
     record_scan_step(
         conn,
@@ -210,7 +219,6 @@ pub fn run_full_scan_with_adapters(
         0,
     )?;
 
-    // Step 2: Scan assets in each platform
     let (step_key, title, description) = SCAN_STEP_DEFINITIONS[1];
     record_scan_step(
         conn,
@@ -282,7 +290,6 @@ pub fn run_full_scan_with_adapters(
         1,
     )?;
 
-    // Step 3: Parse asset and model metadata
     let (step_key, title, description) = SCAN_STEP_DEFINITIONS[2];
     record_scan_step(
         conn,
@@ -334,7 +341,6 @@ pub fn run_full_scan_with_adapters(
         2,
     )?;
 
-    // Step 4: Deduplicate by hash
     let (step_key, title, description) = SCAN_STEP_DEFINITIONS[3];
     record_scan_step(
         conn,
@@ -357,7 +363,6 @@ pub fn run_full_scan_with_adapters(
                     }
                 }
             }
-            // Create findings for duplicates
             let names: Vec<String> = ids
                 .iter()
                 .filter_map(|id| assets.iter().find(|a| a.id == *id))
@@ -399,7 +404,6 @@ pub fn run_full_scan_with_adapters(
         3,
     )?;
 
-    // Step 5: Classify scan results
     let (step_key, title, description) = SCAN_STEP_DEFINITIONS[4];
     record_scan_step(
         conn,
@@ -424,7 +428,6 @@ pub fn run_full_scan_with_adapters(
         4,
     )?;
 
-    // Step 5: Save everything
     let (step_key, title, description) = SCAN_STEP_DEFINITIONS[5];
     record_scan_step(
         conn,
@@ -436,17 +439,17 @@ pub fn run_full_scan_with_adapters(
         None,
         5,
     )?;
+    let tx = conn.unchecked_transaction()?;
     for asset in &assets {
-        db::insert_asset(conn, asset)?;
+        db::insert_asset(&tx, asset)?;
     }
     for binding in &model_bindings {
-        db::insert_model_binding(conn, binding)?;
+        db::insert_model_binding(&tx, binding)?;
     }
     for finding in &findings {
-        db::insert_finding(conn, finding)?;
+        db::insert_finding(&tx, finding)?;
     }
 
-    // Step 6: Update platform counts
     for dp in &mut platforms {
         let count = assets
             .iter()
@@ -468,8 +471,9 @@ pub fn run_full_scan_with_adapters(
             asset_count: count,
             warning_count: warnings,
         };
-        db::insert_platform(conn, &platform)?;
+        db::insert_platform(&tx, &platform)?;
     }
+    tx.commit()?;
     record_scan_step(
         conn,
         &run_id,
@@ -509,170 +513,6 @@ pub struct ScanResult {
     pub assets_found: i32,
     pub duplicates_found: i32,
     pub warnings_found: i32,
-}
-
-pub fn infer_asset_type_from_context(directory_name: &str, file_name: &str) -> &'static str {
-    let directory = directory_name.to_ascii_lowercase();
-    let file = file_name.to_ascii_lowercase();
-
-    match directory.as_str() {
-        "rules" | "rule" => "Rule",
-        "memories" | "memory" => "Memory",
-        "personas" | "persona" => "Persona",
-        "agents" | "agent" => "Agent",
-        "skills" | "skill" => "Skill",
-        "commands" | "command" => "Command",
-        "mcp" => "MCP Server",
-        _ if file == "agents.md" => "Agent",
-        _ if file == "skill.md" || file == "skill.mdx" => "Skill",
-        _ => "Unknown",
-    }
-}
-
-fn resolve_asset_type(search_path: &Path, file_path: &Path, fallback: &str) -> String {
-    let directory_name = search_path
-        .file_name()
-        .and_then(|value| value.to_str())
-        .unwrap_or_default();
-    let file_name = file_path
-        .file_name()
-        .and_then(|value| value.to_str())
-        .unwrap_or_default();
-    let inferred = infer_asset_type_from_context(directory_name, file_name);
-
-    if inferred == "Unknown" {
-        fallback.to_string()
-    } else {
-        inferred.to_string()
-    }
-}
-
-fn derive_scope_and_project_local(path: &Path) -> (String, bool) {
-    let project_local = path
-        .components()
-        .any(|component| component.as_os_str() == "Projects");
-
-    let scope = if project_local { "project" } else { "global" };
-    (scope.to_string(), project_local)
-}
-
-fn build_asset_status(installations: &[Installation]) -> String {
-    let mut parts = vec!["installed".to_string()];
-
-    if installations
-        .iter()
-        .any(|installation| installation.enabled)
-    {
-        parts.push("enabled".to_string());
-    } else {
-        parts.push("disabled".to_string());
-    }
-    if installations
-        .iter()
-        .any(|installation| installation.official)
-    {
-        parts.push("official".to_string());
-    }
-    if installations
-        .iter()
-        .any(|installation| installation.project_local)
-    {
-        parts.push("project-local".to_string());
-    }
-    if installations
-        .iter()
-        .any(|installation| !installation.official)
-    {
-        parts.push("user-installed".to_string());
-    }
-
-    parts.join(",")
-}
-
-fn authoritative_source(metadata_source: &str, platform_name: &str) -> String {
-    let trimmed = metadata_source.trim();
-    if trimmed.is_empty() || trimmed == "unknown" {
-        platform_name.to_string()
-    } else {
-        trimmed.to_string()
-    }
-}
-
-fn append_contextual_findings(findings: &mut Vec<Finding>, assets: &[Asset]) {
-    for asset in assets {
-        let Some(primary_installation) = asset.installations.first() else {
-            continue;
-        };
-
-        if asset
-            .installations
-            .iter()
-            .any(|installation| installation.project_local)
-        {
-            findings.push(Finding {
-                id: format!("find-project-local-{}", asset.id),
-                asset_id: asset.id.clone(),
-                asset_name: asset.name.clone(),
-                platform_id: primary_installation.platform_id.clone(),
-                platform_name: primary_installation.platform_name.clone(),
-                issue: "Project-local".to_string(),
-                risk_level: "medium".to_string(),
-                detail: format!(
-                    "{} 位于项目本地目录，可能导致跨项目行为不一致",
-                    asset.asset_type
-                ),
-            });
-        }
-    }
-}
-
-fn append_conflict_findings(findings: &mut Vec<Finding>, assets: &[Asset]) {
-    let mut grouped: HashMap<(String, String), Vec<&Asset>> = HashMap::new();
-    for asset in assets {
-        grouped
-            .entry((asset.asset_type.clone(), asset.name.clone()))
-            .or_default()
-            .push(asset);
-    }
-
-    for ((asset_type, name), group) in grouped {
-        if group.len() < 2 {
-            continue;
-        }
-
-        let mut hashes = group
-            .iter()
-            .filter_map(|asset| asset.canonical_hash.clone())
-            .collect::<Vec<_>>();
-        hashes.sort();
-        hashes.dedup();
-
-        if hashes.len() < 2 {
-            continue;
-        }
-
-        let Some(first) = group.first() else {
-            continue;
-        };
-        let Some(primary_installation) = first.installations.first() else {
-            continue;
-        };
-
-        findings.push(Finding {
-            id: format!(
-                "find-conflict-{}-{}",
-                asset_type_slug(&asset_type),
-                sha256_hex(format!("{asset_type}:{name}").as_bytes())[..12].to_string()
-            ),
-            asset_id: first.id.clone(),
-            asset_name: name.clone(),
-            platform_id: primary_installation.platform_id.clone(),
-            platform_name: primary_installation.platform_name.clone(),
-            issue: "Conflict".to_string(),
-            risk_level: "high".to_string(),
-            detail: format!("{asset_type} 存在同名不同内容冲突: {name}"),
-        });
-    }
 }
 
 fn scan_skill_files(
@@ -973,7 +813,7 @@ fn scan_json_files(
     Ok(())
 }
 
-fn asset_type_slug(asset_type: &str) -> &'static str {
+pub fn asset_type_slug(asset_type: &str) -> &'static str {
     match asset_type {
         "Command" => "cmd",
         "Rule" => "rule",
@@ -991,332 +831,7 @@ fn asset_type_risk_level(asset_type: &str) -> &'static str {
     }
 }
 
-fn parse_model_config(
-    path: &Path,
-    format: &str,
-    platform_id: &str,
-    platform_name: &str,
-) -> Result<ModelBinding, Box<dyn std::error::Error>> {
-    let content = fs::read_to_string(path)?;
-    let now = chrono::Utc::now().to_rfc3339();
-    let mut provider = String::new();
-    let mut model_id = String::new();
-    let mut base_url = None;
-    let mut key_present = false;
-    let mut key_storage = "unknown".to_string();
-    let mut warnings = String::new();
-
-    match format {
-        "json" => {
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
-                if let Some(parsed) = parse_json_model_schema(&json) {
-                    provider = parsed.provider;
-                    model_id = parsed.model_id;
-                    base_url = parsed.base_url;
-                }
-                if json_contains_secret_key(&json) {
-                    key_present = true;
-                    key_storage = "config".to_string();
-                    warnings = "API Key 存储在配置文件中".to_string();
-                }
-            }
-        }
-        "yaml" | "yml" => {
-            if let Ok(yaml) = serde_yaml::from_str::<serde_yaml::Value>(&content) {
-                if let Some(parsed) = parse_yaml_model_schema(&yaml) {
-                    provider = parsed.provider;
-                    model_id = parsed.model_id;
-                    base_url = parsed.base_url;
-                }
-                if yaml_contains_secret_key(&yaml) {
-                    key_present = true;
-                    key_storage = "config".to_string();
-                    warnings = "API Key 存储在配置文件中".to_string();
-                }
-            }
-        }
-        "toml" => {
-            if let Ok(toml) = toml::from_str::<toml::Value>(&content) {
-                if let Some(parsed) = parse_toml_model_schema(&toml) {
-                    provider = parsed.provider;
-                    model_id = parsed.model_id;
-                    base_url = parsed.base_url;
-                }
-            }
-        }
-        _ => {}
-    }
-
-    // Check environment variables
-    if !key_present {
-        let env_vars = [
-            "OPENAI_API_KEY",
-            "ANTHROPIC_API_KEY",
-            "MOONSHOT_API_KEY",
-            "OPENROUTER_API_KEY",
-        ];
-        for var in &env_vars {
-            if std::env::var(var).is_ok() {
-                key_present = true;
-                key_storage = "env".to_string();
-                break;
-            }
-        }
-    }
-
-    Ok(ModelBinding {
-        id: format!(
-            "mb-{}-{}",
-            platform_id,
-            sha256_hex(path.to_string_lossy().as_bytes())[..12].to_string()
-        ),
-        platform_id: platform_id.to_string(),
-        platform_name: platform_name.to_string(),
-        detected_provider: provider,
-        detected_model_id: model_id,
-        detected_base_url: base_url,
-        config_path: path.to_string_lossy().to_string(),
-        key_presence: key_present,
-        key_storage,
-        key_suffix: if key_present {
-            Some("****".to_string())
-        } else {
-            None
-        },
-        validation_status: "not-checked".to_string(),
-        last_validated_at: Some(now),
-        warnings,
-    })
-}
-
-struct ParsedModelSchema {
-    provider: String,
-    model_id: String,
-    base_url: Option<String>,
-}
-
-fn parse_json_model_schema(value: &serde_json::Value) -> Option<ParsedModelSchema> {
-    let provider = value
-        .get("provider")
-        .and_then(|v| v.as_str())
-        .or_else(|| value.pointer("/model/provider").and_then(|v| v.as_str()))
-        .or_else(|| value.pointer("/providers/default").and_then(|v| v.as_str()))
-        .unwrap_or_default()
-        .to_string();
-
-    let provider_node = if provider.is_empty() {
-        None
-    } else {
-        value.pointer(&format!("/providers/{provider}"))
-    };
-
-    let model_id = value
-        .get("model")
-        .and_then(|v| v.as_str())
-        .or_else(|| value.get("model_id").and_then(|v| v.as_str()))
-        .or_else(|| value.pointer("/model/id").and_then(|v| v.as_str()))
-        .or_else(|| {
-            provider_node
-                .and_then(|node| node.get("model"))
-                .and_then(|v| v.as_str())
-        })
-        .or_else(|| {
-            provider_node
-                .and_then(|node| node.get("model_id"))
-                .and_then(|v| v.as_str())
-        })
-        .unwrap_or_default()
-        .to_string();
-
-    let base_url = value
-        .get("base_url")
-        .and_then(|v| v.as_str())
-        .or_else(|| value.pointer("/model/base_url").and_then(|v| v.as_str()))
-        .or_else(|| {
-            provider_node
-                .and_then(|node| node.get("base_url"))
-                .and_then(|v| v.as_str())
-        })
-        .map(str::to_string);
-
-    if provider.is_empty() && model_id.is_empty() && base_url.is_none() {
-        None
-    } else {
-        Some(ParsedModelSchema {
-            provider,
-            model_id,
-            base_url,
-        })
-    }
-}
-
-fn parse_yaml_model_schema(value: &serde_yaml::Value) -> Option<ParsedModelSchema> {
-    let root = value.as_mapping()?;
-    let model = yaml_mapping_get(root, "model").and_then(|v| v.as_mapping());
-
-    let provider = yaml_mapping_get(root, "provider")
-        .and_then(|v| v.as_str())
-        .or_else(|| {
-            model.and_then(|mapping| yaml_mapping_get(mapping, "provider").and_then(|v| v.as_str()))
-        })
-        .unwrap_or_default()
-        .to_string();
-
-    let model_id = yaml_mapping_get(root, "model")
-        .and_then(|v| v.as_str())
-        .or_else(|| yaml_mapping_get(root, "model_id").and_then(|v| v.as_str()))
-        .or_else(|| {
-            model.and_then(|mapping| yaml_mapping_get(mapping, "id").and_then(|v| v.as_str()))
-        })
-        .or_else(|| {
-            model.and_then(|mapping| yaml_mapping_get(mapping, "model").and_then(|v| v.as_str()))
-        })
-        .unwrap_or_default()
-        .to_string();
-
-    let base_url = yaml_mapping_get(root, "base_url")
-        .and_then(|v| v.as_str())
-        .or_else(|| {
-            model.and_then(|mapping| yaml_mapping_get(mapping, "base_url").and_then(|v| v.as_str()))
-        })
-        .map(str::to_string);
-
-    if provider.is_empty() && model_id.is_empty() && base_url.is_none() {
-        None
-    } else {
-        Some(ParsedModelSchema {
-            provider,
-            model_id,
-            base_url,
-        })
-    }
-}
-
-fn parse_toml_model_schema(value: &toml::Value) -> Option<ParsedModelSchema> {
-    let model = value.get("model");
-    let provider = value
-        .get("provider")
-        .and_then(|v| v.as_str())
-        .or_else(|| {
-            model
-                .and_then(|v| v.get("provider"))
-                .and_then(|v| v.as_str())
-        })
-        .unwrap_or_default()
-        .to_string();
-    let model_id = value
-        .get("model")
-        .and_then(|v| v.as_str())
-        .or_else(|| value.get("model_id").and_then(|v| v.as_str()))
-        .or_else(|| model.and_then(|v| v.get("id")).and_then(|v| v.as_str()))
-        .or_else(|| model.and_then(|v| v.get("model")).and_then(|v| v.as_str()))
-        .unwrap_or_default()
-        .to_string();
-    let base_url = value
-        .get("base_url")
-        .and_then(|v| v.as_str())
-        .or_else(|| {
-            model
-                .and_then(|v| v.get("base_url"))
-                .and_then(|v| v.as_str())
-        })
-        .map(str::to_string);
-
-    if provider.is_empty() && model_id.is_empty() && base_url.is_none() {
-        None
-    } else {
-        Some(ParsedModelSchema {
-            provider,
-            model_id,
-            base_url,
-        })
-    }
-}
-
-fn yaml_mapping_get<'a>(
-    mapping: &'a serde_yaml::Mapping,
-    key: &str,
-) -> Option<&'a serde_yaml::Value> {
-    mapping.get(serde_yaml::Value::String(key.to_string()))
-}
-
-fn json_contains_secret_key(value: &serde_json::Value) -> bool {
-    match value {
-        serde_json::Value::Object(map) => map
-            .iter()
-            .any(|(key, value)| is_secret_key_name(key) || json_contains_secret_key(value)),
-        serde_json::Value::Array(items) => items.iter().any(json_contains_secret_key),
-        _ => false,
-    }
-}
-
-fn yaml_contains_secret_key(value: &serde_yaml::Value) -> bool {
-    match value {
-        serde_yaml::Value::Mapping(mapping) => mapping.iter().any(|(key, value)| {
-            key.as_str().is_some_and(is_secret_key_name) || yaml_contains_secret_key(value)
-        }),
-        serde_yaml::Value::Sequence(items) => items.iter().any(yaml_contains_secret_key),
-        _ => false,
-    }
-}
-
-fn is_secret_key_name(key: &str) -> bool {
-    let lower = key.to_ascii_lowercase();
-    lower == "api_key"
-        || lower.ends_with("_api_key")
-        || lower.contains("secret")
-        || lower.contains("token")
-        || lower.contains("credential")
-}
-
-struct ParsedFrontmatter {
-    name: String,
-    description: Option<String>,
-    author: Option<String>,
-    version: Option<String>,
-    source: String,
-}
-
-fn parse_frontmatter(content: &str) -> ParsedFrontmatter {
-    let mut result = ParsedFrontmatter {
-        name: String::new(),
-        description: None,
-        author: None,
-        version: None,
-        source: "unknown".to_string(),
-    };
-
-    if content.starts_with("---") {
-        if let Some(end) = content[3..].find("---") {
-            let fm = &content[3..end + 3];
-            let re_name = Regex::new(r"(?m)^name:\s*(.+)$").unwrap();
-            let re_desc = Regex::new(r"(?m)^description:\s*(.+)$").unwrap();
-            let re_author = Regex::new(r"(?m)^author:\s*(.+)$").unwrap();
-            let re_version = Regex::new(r"(?m)^version:\s*(.+)$").unwrap();
-            let re_source = Regex::new(r"(?m)^source:\s*(.+)$").unwrap();
-
-            if let Some(cap) = re_name.captures(fm) {
-                result.name = cap[1].trim().to_string();
-            }
-            if let Some(cap) = re_desc.captures(fm) {
-                result.description = Some(cap[1].trim().to_string());
-            }
-            if let Some(cap) = re_author.captures(fm) {
-                result.author = Some(cap[1].trim().to_string());
-            }
-            if let Some(cap) = re_version.captures(fm) {
-                result.version = Some(cap[1].trim().to_string());
-            }
-            if let Some(cap) = re_source.captures(fm) {
-                result.source = cap[1].trim().to_string();
-            }
-        }
-    }
-
-    result
-}
-
-fn sha256_hex(data: &[u8]) -> String {
+pub fn sha256_hex(data: &[u8]) -> String {
     let mut hasher = Sha256::new();
     hasher.update(data);
     hex::encode(hasher.finalize())

@@ -1,6 +1,7 @@
 pub mod adapters;
 pub mod commands;
 pub mod db;
+pub mod error;
 pub mod fileops;
 pub mod operations;
 pub mod platform;

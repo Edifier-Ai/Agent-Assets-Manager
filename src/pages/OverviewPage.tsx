@@ -67,7 +67,7 @@ export default function OverviewPage({ platforms, assets, findings, modelBinding
               <h3 className="font-semibold text-gray-900">已安装平台</h3>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm" aria-label="已安装平台列表">
                 <thead>
                   <tr className="text-left text-gray-500">
                     <th className="px-5 py-3 font-medium">平台</th>
@@ -125,7 +125,7 @@ export default function OverviewPage({ platforms, assets, findings, modelBinding
               <h3 className="font-semibold text-gray-900">需要检查的资产</h3>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full text-sm" aria-label="需要检查的资产列表">
                 <thead>
                   <tr className="text-left text-gray-500">
                     <th className="px-5 py-3 font-medium">资产</th>
@@ -187,7 +187,7 @@ export default function OverviewPage({ platforms, assets, findings, modelBinding
             <h3 className="font-semibold text-gray-900">模型配置</h3>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm" aria-label="模型配置列表">
               <thead>
                 <tr className="text-left text-gray-500">
                   <th className="px-5 py-3 font-medium">模型</th>

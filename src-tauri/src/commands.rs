@@ -1,14 +1,22 @@
 use crate::db;
 use crate::db::get_db_connection;
+use crate::error::AppError;
 use crate::operations;
 use crate::scanner;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
+pub struct ErrorPayload {
+    pub code: String,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct ApiResponse<T> {
     pub success: bool,
     pub data: Option<T>,
-    pub error: Option<String>,
+    pub error: Option<ErrorPayload>,
 }
 
 impl<T> ApiResponse<T> {
@@ -19,11 +27,15 @@ impl<T> ApiResponse<T> {
             error: None,
         }
     }
-    fn err(msg: String) -> Self {
+    fn err(error: AppError) -> Self {
+        let payload = error.to_payload();
         Self {
             success: false,
             data: None,
-            error: Some(msg),
+            error: Some(ErrorPayload {
+                code: payload.code.to_string(),
+                message: payload.message,
+            }),
         }
     }
 }
@@ -45,7 +57,7 @@ pub fn scan_platforms(
     // Cache miss — detect and persist
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
     let now = chrono::Utc::now().to_rfc3339();
 
@@ -67,7 +79,7 @@ pub fn scan_platforms(
             warning_count: dp.warning_count,
         };
         if let Err(e) = db::insert_platform(&conn, &platform) {
-            return ApiResponse::err(e.to_string());
+            return ApiResponse::err(AppError::from(e));
         }
         db_platforms.push(platform);
     }
@@ -79,7 +91,7 @@ pub fn scan_platforms(
             *guard = Some((std::time::Instant::now(), all_platforms.clone()));
             ApiResponse::ok(all_platforms)
         }
-        Err(e) => ApiResponse::err(e.to_string()),
+        Err(e) => ApiResponse::err(AppError::from(e)),
     }
 }
 
@@ -94,7 +106,7 @@ pub async fn scan_assets(
     // Read settings synchronously before spawning (fast DB call)
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return Ok(ApiResponse::err(e.to_string())),
+        Err(e) => return Ok(ApiResponse::err(AppError::from(e))),
     };
     let context = default_settings_context();
     let settings = match db::get_settings(
@@ -104,7 +116,7 @@ pub async fn scan_assets(
         &context.trash_location,
     ) {
         Ok(s) => s,
-        Err(e) => return Ok(ApiResponse::err(e.to_string())),
+        Err(e) => return Ok(ApiResponse::err(AppError::from(e))),
     };
 
     let explicit_roots = sanitize_paths(scan_roots_raw, Vec::new());
@@ -132,8 +144,8 @@ pub async fn scan_assets(
             cache.invalidate();
             ApiResponse::ok(scan_result)
         }
-        Ok(Err(e)) => ApiResponse::err(e),
-        Err(join_err) => ApiResponse::err(format!("scan task panicked: {join_err}")),
+        Ok(Err(e)) => ApiResponse::err(AppError::Other(e)),
+        Err(_join_err) => ApiResponse::err(AppError::ScanPanicked),
     })
 }
 
@@ -141,11 +153,11 @@ pub async fn scan_assets(
 pub fn get_platforms() -> ApiResponse<Vec<db::Platform>> {
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
     match db::get_all_platforms(&conn) {
         Ok(p) => ApiResponse::ok(p),
-        Err(e) => ApiResponse::err(e.to_string()),
+        Err(e) => ApiResponse::err(AppError::from(e)),
     }
 }
 
@@ -153,11 +165,11 @@ pub fn get_platforms() -> ApiResponse<Vec<db::Platform>> {
 pub fn get_assets() -> ApiResponse<Vec<db::Asset>> {
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
     match db::get_all_assets(&conn) {
         Ok(a) => ApiResponse::ok(a),
-        Err(e) => ApiResponse::err(e.to_string()),
+        Err(e) => ApiResponse::err(AppError::from(e)),
     }
 }
 
@@ -165,11 +177,11 @@ pub fn get_assets() -> ApiResponse<Vec<db::Asset>> {
 pub fn get_model_bindings() -> ApiResponse<Vec<db::ModelBinding>> {
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
     match db::get_all_model_bindings(&conn) {
         Ok(m) => ApiResponse::ok(m),
-        Err(e) => ApiResponse::err(e.to_string()),
+        Err(e) => ApiResponse::err(AppError::from(e)),
     }
 }
 
@@ -177,11 +189,11 @@ pub fn get_model_bindings() -> ApiResponse<Vec<db::ModelBinding>> {
 pub fn get_model_profiles() -> ApiResponse<Vec<db::ModelProfile>> {
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
     match db::get_model_profiles(&conn) {
         Ok(profiles) => ApiResponse::ok(profiles),
-        Err(e) => ApiResponse::err(e.to_string()),
+        Err(e) => ApiResponse::err(AppError::from(e)),
     }
 }
 
@@ -189,11 +201,11 @@ pub fn get_model_profiles() -> ApiResponse<Vec<db::ModelProfile>> {
 pub fn get_backups() -> ApiResponse<Vec<db::Backup>> {
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
     match db::get_all_backups(&conn) {
         Ok(b) => ApiResponse::ok(b),
-        Err(e) => ApiResponse::err(e.to_string()),
+        Err(e) => ApiResponse::err(AppError::from(e)),
     }
 }
 
@@ -201,11 +213,11 @@ pub fn get_backups() -> ApiResponse<Vec<db::Backup>> {
 pub fn get_operation_logs() -> ApiResponse<Vec<db::OperationLog>> {
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
     match db::get_all_operation_logs(&conn) {
         Ok(logs) => ApiResponse::ok(logs),
-        Err(e) => ApiResponse::err(e.to_string()),
+        Err(e) => ApiResponse::err(AppError::from(e)),
     }
 }
 
@@ -213,11 +225,11 @@ pub fn get_operation_logs() -> ApiResponse<Vec<db::OperationLog>> {
 pub fn get_findings() -> ApiResponse<Vec<db::Finding>> {
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
     match db::get_all_findings(&conn) {
         Ok(f) => ApiResponse::ok(f),
-        Err(e) => ApiResponse::err(e.to_string()),
+        Err(e) => ApiResponse::err(AppError::from(e)),
     }
 }
 
@@ -225,11 +237,11 @@ pub fn get_findings() -> ApiResponse<Vec<db::Finding>> {
 pub fn get_scan_runs() -> ApiResponse<Vec<db::ScanRun>> {
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
     match db::get_all_scan_runs(&conn) {
         Ok(r) => ApiResponse::ok(r),
-        Err(e) => ApiResponse::err(e.to_string()),
+        Err(e) => ApiResponse::err(AppError::from(e)),
     }
 }
 
@@ -242,14 +254,12 @@ pub struct AssetDetailRequest {
 pub fn get_asset_detail(request: AssetDetailRequest) -> ApiResponse<db::Asset> {
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
-    match db::get_all_assets(&conn) {
-        Ok(assets) => match assets.into_iter().find(|a| a.id == request.asset_id) {
-            Some(a) => ApiResponse::ok(a),
-            None => ApiResponse::err("Asset not found".to_string()),
-        },
-        Err(e) => ApiResponse::err(e.to_string()),
+    match db::get_asset_by_id(&conn, &request.asset_id) {
+        Ok(Some(asset)) => ApiResponse::ok(asset),
+        Ok(None) => ApiResponse::err(AppError::AssetNotFound(request.asset_id.clone())),
+        Err(e) => ApiResponse::err(AppError::from(e)),
     }
 }
 
@@ -259,7 +269,7 @@ pub fn preview_operation(
 ) -> ApiResponse<operations::OperationPreview> {
     match operations::preview_operation(request) {
         Ok(preview) => ApiResponse::ok(preview),
-        Err(e) => ApiResponse::err(e),
+        Err(e) => ApiResponse::err(AppError::Other(e)),
     }
 }
 
@@ -270,7 +280,7 @@ pub fn execute_operation(
 ) -> ApiResponse<operations::OperationExecutionResult> {
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
 
     match operations::execute_operation(&conn, request) {
@@ -278,7 +288,7 @@ pub fn execute_operation(
             cache.invalidate();
             ApiResponse::ok(result)
         }
-        Err(e) => ApiResponse::err(e),
+        Err(e) => ApiResponse::err(AppError::Other(e)),
     }
 }
 
@@ -295,12 +305,12 @@ pub fn preview_skill_sync_plan(
 ) -> ApiResponse<operations::BatchSyncPreview> {
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
 
     let all_assets = match db::get_all_assets(&conn) {
         Ok(a) => a,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
 
     let selected_assets: Vec<db::Asset> = all_assets
@@ -310,7 +320,7 @@ pub fn preview_skill_sync_plan(
 
     let all_platforms = match db::get_all_platforms(&conn) {
         Ok(p) => p,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
 
     match operations::preview_skill_sync_plan(
@@ -320,7 +330,7 @@ pub fn preview_skill_sync_plan(
         request.source_platform_id.as_deref(),
     ) {
         Ok(preview) => ApiResponse::ok(preview),
-        Err(e) => ApiResponse::err(e),
+        Err(e) => ApiResponse::err(AppError::Other(e)),
     }
 }
 
@@ -331,7 +341,7 @@ pub fn execute_skill_sync_plan(
 ) -> ApiResponse<operations::BatchSyncResult> {
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
 
     match operations::execute_skill_sync_plan(&conn, request) {
@@ -339,7 +349,7 @@ pub fn execute_skill_sync_plan(
             cache.invalidate();
             ApiResponse::ok(result)
         }
-        Err(e) => ApiResponse::err(e),
+        Err(e) => ApiResponse::err(AppError::Other(e)),
     }
 }
 
@@ -347,7 +357,7 @@ pub fn execute_skill_sync_plan(
 pub fn get_settings() -> ApiResponse<db::AppSettings> {
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
     let context = default_settings_context();
 
@@ -358,7 +368,7 @@ pub fn get_settings() -> ApiResponse<db::AppSettings> {
         &context.trash_location,
     ) {
         Ok(settings) => ApiResponse::ok(settings),
-        Err(e) => ApiResponse::err(e.to_string()),
+        Err(e) => ApiResponse::err(AppError::from(e)),
     }
 }
 
@@ -431,10 +441,37 @@ fn merge_save_settings_request(
 fn sanitize_path(path: String, fallback: String) -> String {
     let trimmed = path.trim();
     if trimmed.is_empty() {
-        fallback
+        return fallback;
+    }
+
+    let expanded = if trimmed.starts_with("~/") {
+        if let Some(home) = dirs::home_dir() {
+            home.join(&trimmed[2..]).to_string_lossy().to_string()
+        } else {
+            trimmed.to_string()
+        }
     } else {
         trimmed.to_string()
+    };
+
+    let resolved = Path::new(&expanded);
+    let resolved = if resolved.is_relative() {
+        return fallback;
+    } else {
+        resolved.to_path_buf()
+    };
+
+    let blocked_prefixes = [
+        "/bin", "/sbin", "/usr", "/etc", "/var", "/sys", "/proc", "/dev",
+        "/System", "/Library/Apple", "/Library/Application Support/Apple",
+    ];
+    for prefix in &blocked_prefixes {
+        if resolved.starts_with(prefix) {
+            return fallback;
+        }
     }
+
+    expanded
 }
 
 fn sanitize_paths(paths: Vec<String>, fallback: Vec<String>) -> Vec<String> {
@@ -468,7 +505,7 @@ fn sanitize_platform_ids(ids: Vec<String>) -> Vec<String> {
 pub fn save_settings(request: SaveSettingsRequest) -> ApiResponse<String> {
     let conn = match get_db_connection() {
         Ok(c) => c,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
     let context = default_settings_context();
 
@@ -479,13 +516,13 @@ pub fn save_settings(request: SaveSettingsRequest) -> ApiResponse<String> {
         &context.trash_location,
     ) {
         Ok(settings) => settings,
-        Err(e) => return ApiResponse::err(e.to_string()),
+        Err(e) => return ApiResponse::err(AppError::from(e)),
     };
 
     let merged = merge_save_settings_request(current, request);
     match db::save_settings(&conn, &merged) {
         Ok(()) => ApiResponse::ok("Settings saved".to_string()),
-        Err(e) => ApiResponse::err(e.to_string()),
+        Err(e) => ApiResponse::err(AppError::from(e)),
     }
 }
 

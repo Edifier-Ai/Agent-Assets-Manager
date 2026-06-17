@@ -15,6 +15,7 @@ import BackupsPage from './pages/BackupsPage';
 import OperationsPage from './pages/OperationsPage';
 import SettingsPage, { applyThemePreference } from './pages/SettingsPage';
 import FirstRunWizard from './components/FirstRunWizard';
+import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider, useToast } from './components/Toast';
 import * as api from './api';
 import { isInstalledOnPlatform } from './pages/assets/logic';
@@ -78,16 +79,36 @@ export function filterIgnoredPlatformData({
   };
 }
 
-const pageComponents: Record<NavPage, ComponentType<any>> = {
-  overview: OverviewPage,
-  assets: AssetsPage,
-  platforms: PlatformsPage,
-  models: ModelsPage,
-  diagnostics: DiagnosticsPage,
-  scan: ScanPage,
-  backups: BackupsPage,
-  operations: OperationsPage,
-  settings: SettingsPage,
+interface PageProps {
+  platforms: Platform[];
+  assets: Asset[];
+  modelBindings: ModelBinding[];
+  backups: Backup[];
+  findings: Finding[];
+  operationLogs: OperationLog[];
+  scanRuns: ScanRun[];
+  settings?: AppSettings;
+  initialFilter?: AssetFilterId;
+  initialLoading: boolean;
+  onSelectPlatform: (platform: Platform) => void;
+  onNavigate: (page: NavPage, options?: { assetFilter?: AssetFilterId }) => void;
+  onRefresh: () => Promise<void>;
+  onSaveSettings: (settings: SaveSettingsInput) => Promise<void>;
+  onDirtyChange?: (dirty: boolean) => void;
+}
+
+type PageComponent = ComponentType<PageProps>;
+
+const pageComponents: Record<NavPage, PageComponent> = {
+  overview: OverviewPage as PageComponent,
+  assets: AssetsPage as PageComponent,
+  platforms: PlatformsPage as PageComponent,
+  models: ModelsPage as PageComponent,
+  diagnostics: DiagnosticsPage as PageComponent,
+  scan: ScanPage as PageComponent,
+  backups: BackupsPage as PageComponent,
+  operations: OperationsPage as PageComponent,
+  settings: SettingsPage as PageComponent,
 };
 
 function getErrorMessage(error: unknown, defaultMessage: string): string {
@@ -412,8 +433,10 @@ export default function App() {
   }
 
   return (
-    <ToastProvider>
-      <AppShell />
-    </ToastProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        <AppShell />
+      </ToastProvider>
+    </ErrorBoundary>
   );
 }
